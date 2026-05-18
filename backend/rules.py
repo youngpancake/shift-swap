@@ -105,11 +105,15 @@ def validate_schedule_change(
 def can_cover(
     shift_seniority: SeniorityLevel,
     coverer_level: SeniorityLevel,
+    shift_area: str = "",
 ) -> bool:
     """
     Sr shift → only Sr can cover.
+    Triage → only Sr can cover (regardless of seniority label on the shift).
     Jr shift → anyone can cover.
     """
+    if shift_area == "Triage":
+        return coverer_level == SeniorityLevel.SR
     if shift_seniority == SeniorityLevel.SR:
         return coverer_level == SeniorityLevel.SR
     return True  # Jr or Unknown shift: open to all

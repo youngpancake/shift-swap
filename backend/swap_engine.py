@@ -47,7 +47,7 @@ def find_swap_options(
             continue
 
         # --- Seniority gate ---
-        if not can_cover(request_shift.seniority, coverer.level):
+        if not can_cover(request_shift.seniority, coverer.level, request_shift.shift_area):
             continue
 
         coverer_schedule = all_schedules.get(coverer.id, {})
@@ -77,7 +77,7 @@ def find_swap_options(
                 continue
 
             # Seniority gate for the reverse direction
-            if not can_cover(coverer_shift.seniority, requester.level):
+            if not can_cover(coverer_shift.seniority, requester.level, coverer_shift.shift_area):
                 continue
 
             # Validate requester picking up coverer_date
