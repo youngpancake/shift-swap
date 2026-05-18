@@ -29,11 +29,22 @@
     .resident-level { font-size: 12px; font-weight: 500; margin-top: 2px; }
     .resident-stats { font-size: 12px; color: #6b7280; margin-top: 4px; }
     .level-sr { color: #7c3aed; } .level-jr { color: #0891b2; } .level-unknown { color: #6b7280; }
+    .sidebar-divider { border: none; border-top: 1px solid #e5e7eb; margin: 2px 0; }
     .sidebar-hint { font-size: 12px; color: #9ca3af; line-height: 1.5; margin-top: auto; }
-    .main-content { flex: 1; padding: 24px; display: flex; flex-direction: column; gap: 20px; overflow-y: auto; }
+    .compare-clear-btn { background: none; border: none; font-size: 11px; color: #9ca3af; padding: 0; cursor: pointer; }
+    .compare-clear-btn:hover { color: #6b7280; }
+    .compare-label-row { display: flex; align-items: center; justify-content: space-between; }
+    .main-content { flex: 1; padding: 24px; display: flex; flex-direction: column; gap: 20px; overflow-y: auto; min-width: 0; }
+
+    /* Calendars side by side */
+    .calendars-row { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; }
+    .calendar-wrapper { display: flex; flex-direction: column; gap: 8px; }
+    .calendar-owner-label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: #6b7280; padding: 0 2px; }
+    .calendar-owner-label.compare-label { color: #0891b2; }
 
     /* Calendar */
-    .calendar { background: #fff; border-radius: 14px; border: 1px solid #e5e7eb; padding: 20px; max-width: 560px; }
+    .calendar { background: #fff; border-radius: 14px; border: 1px solid #e5e7eb; padding: 20px; width: 360px; min-width: 300px; }
+    .calendar.compare-calendar { border-color: #bae6fd; }
     .calendar-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
     .calendar-title { font-size: 16px; font-weight: 600; }
     .nav-btn { background: none; border: 1px solid #e5e7eb; border-radius: 8px; width: 32px; height: 32px; font-size: 18px; display: flex; align-items: center; justify-content: center; color: #374151; }
@@ -45,7 +56,10 @@
     .cal-cell.off { background: #f9fafb; color: #9ca3af; }
     .cal-cell.working { cursor: pointer; font-weight: 600; color: #1a1d23; }
     .cal-cell.working:hover { transform: scale(1.06); box-shadow: 0 2px 8px rgba(0,0,0,.12); z-index: 1; }
+    .cal-cell.read-only { cursor: default !important; }
+    .cal-cell.read-only:hover { transform: none !important; box-shadow: none !important; }
     .cal-cell.selected { outline: 2px solid #3b82f6; outline-offset: 2px; }
+    .cal-cell.highlight-swap { outline: 2px solid #059669; outline-offset: 2px; }
     .shift-day { background: #dbeafe; } .shift-swing { background: #fef3c7; } .shift-night { background: #e0e7ff; } .shift-unknown { background: #f0fdf4; }
     .day-num { font-size: 13px; line-height: 1; }
     .shift-tag { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: #6b7280; margin-top: 2px; }
@@ -75,6 +89,9 @@
     .coverer-name { font-weight: 600; font-size: 14px; }
     .level-badge { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 20px; text-transform: uppercase; letter-spacing: .04em; }
     .level-badge.level-sr { background: #ede9fe; color: #7c3aed; } .level-badge.level-jr { background: #cffafe; color: #0e7490; } .level-badge.level-unknown { background: #f3f4f6; color: #6b7280; }
+    .view-calendar-btn { margin-left: auto; background: none; border: 1px solid #bae6fd; border-radius: 6px; font-size: 11px; font-weight: 600; color: #0284c7; padding: 3px 9px; cursor: pointer; white-space: nowrap; }
+    .view-calendar-btn:hover { background: #e0f2fe; }
+    .view-calendar-btn.active { background: #0284c7; color: #fff; border-color: #0284c7; }
     .option-card-body { padding: 12px 14px; }
     .swap-exchange { display: flex; align-items: center; gap: 12px; }
     .swap-side { flex: 1; }
@@ -105,14 +122,13 @@
     .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid #e5e7eb; border-top-color: #3b82f6; border-radius: 50%; animation: spin .7s linear infinite; flex-shrink: 0; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* Non-swappable shifts (Vacation, ICU, Jeopardy, etc.) */
+    /* Non-swappable shifts */
     .cal-cell.not-swappable { cursor: default !important; }
     .cal-cell.not-swappable:hover { transform: none !important; box-shadow: none !important; }
     .shift-busy { background: #f3f4f6 !important; color: #6b7280 !important; }
     .non-swap-notice { background: #fefce8; border: 1px solid #fde68a; color: #92400e; padding: 14px 16px; border-radius: 10px; font-size: 14px; display: flex; align-items: flex-start; gap: 10px; }
     .non-swap-notice strong { display: block; margin-bottom: 2px; }
 
-    /* Shift area badge in calendar */
     .shift-tag { font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: #374151; margin-top: 2px; text-align: center; line-height: 1.2; }
   </style>
 </head>
@@ -148,10 +164,7 @@ function badgeClass(type) {
 }
 const AREA_ABBR = { "Green": "Grn", "Purple": "Prp", "Peds": "Peds", "Fast Track": "FT", "Triage": "Tri" };
 function shiftLabel(shift) {
-  if (!shift.is_swappable) {
-    // Show first word of non-swappable shift name (Vacation, ICU, Jeopardy, etc.)
-    return shift.shift_name.split(" ")[0].slice(0, 9);
-  }
+  if (!shift.is_swappable) return shift.shift_name.split(" ")[0].slice(0, 9);
   const abbr = AREA_ABBR[shift.shift_area] || "";
   return abbr ? `${abbr} · ${shift.shift_type[0]}` : shift.shift_type;
 }
@@ -212,14 +225,16 @@ function UploadPanel({ onUploaded }) {
   );
 }
 
-function Calendar({ year, month, assignments, selectedDate, onSelectDate, onPrev, onNext }) {
+// highlightDates: set of ISO date strings to ring in green (swap dates)
+function Calendar({ year, month, assignments, selectedDate, onSelectDate, onPrev, onNext, readOnly, highlightDates }) {
   const working = new Map(assignments.map(a => [a.work_date, a]));
+  const highlights = new Set(highlightDates || []);
   const firstDay = new Date(year, month - 1, 1).getDay();
   const daysInMonth = new Date(year, month, 0).getDate();
   const cells = [...Array(firstDay).fill(null), ...Array.from({length: daysInMonth}, (_, i) => i + 1)];
   while (cells.length % 7 !== 0) cells.push(null);
 
-  return h("div", { className: "calendar" },
+  return h("div", { className: `calendar${readOnly ? " compare-calendar" : ""}` },
     h("div", { className: "calendar-header" },
       h("button", { className: "nav-btn", onClick: onPrev }, "‹"),
       h("span", { className: "calendar-title" }, `${MONTHS[month-1]} ${year}`),
@@ -232,11 +247,20 @@ function Calendar({ year, month, assignments, selectedDate, onSelectDate, onPrev
         const iso = isoDate(year, month, day);
         const shift = working.get(iso);
         const isSelected = iso === selectedDate;
+        const isHighlighted = highlights.has(iso);
         const isSwappable = shift ? shift.is_swappable : false;
+        const classes = [
+          "cal-cell",
+          shift ? "working" : "off",
+          shift ? shiftColor(shift) : "",
+          isSelected ? "selected" : "",
+          isHighlighted ? "highlight-swap" : "",
+          (readOnly || (shift && !isSwappable)) ? (readOnly ? "read-only" : "not-swappable") : "",
+        ].filter(Boolean).join(" ");
         return h("div", {
           key: iso,
-          className: ["cal-cell", shift ? "working" : "off", shift ? shiftColor(shift) : "", isSelected ? "selected" : "", shift && !isSwappable ? "not-swappable" : ""].join(" "),
-          onClick: () => shift && onSelectDate(iso, shift),
+          className: classes,
+          onClick: () => !readOnly && shift && onSelectDate(iso, shift),
           title: shift ? shift.shift_name : "Off",
         },
           h("span", { className: "day-num" }, day),
@@ -254,11 +278,17 @@ function Calendar({ year, month, assignments, selectedDate, onSelectDate, onPrev
   );
 }
 
-function OptionCard({ opt }) {
+function OptionCard({ opt, compareResidentId, onViewCalendar }) {
+  const isActive = compareResidentId === opt.coverer.id;
   return h("div", { className: "option-card" },
     h("div", { className: "option-card-header" },
       h("span", { className: "coverer-name" }, opt.coverer.name),
-      h("span", { className: `level-badge level-${opt.coverer.level.toLowerCase()}` }, opt.coverer.level)
+      h("span", { className: `level-badge level-${opt.coverer.level.toLowerCase()}` }, opt.coverer.level),
+      h("button", {
+        className: `view-calendar-btn${isActive ? " active" : ""}`,
+        onClick: () => onViewCalendar(opt.coverer, opt),
+        title: "View this resident's calendar",
+      }, isActive ? "Viewing" : "View calendar")
     ),
     h("div", { className: "option-card-body" },
       opt.type === "mutual" && opt.mutual
@@ -291,7 +321,7 @@ function OptionCard({ opt }) {
   );
 }
 
-function SwapResults({ response, onClose }) {
+function SwapResults({ response, onClose, compareResidentId, onViewCalendar }) {
   const total = response.mutual_options.length + response.one_sided_options.length;
   return h("div", { className: "swap-results" },
     h("div", { className: "results-header" },
@@ -312,12 +342,12 @@ function SwapResults({ response, onClose }) {
     response.mutual_options.length > 0 && h("section", null,
       h("h4", { className: "section-heading mutual-heading" }, "Mutual swaps", h("span", { className: "count-badge" }, response.mutual_options.length)),
       h("p", { className: "section-desc" }, "Both residents exchange a shift — preferred."),
-      h("div", { className: "options-list" }, ...response.mutual_options.map((opt, i) => h(OptionCard, { key: i, opt })))
+      h("div", { className: "options-list" }, ...response.mutual_options.map((opt, i) => h(OptionCard, { key: i, opt, compareResidentId, onViewCalendar })))
     ),
     response.one_sided_options.length > 0 && h("section", null,
       h("h4", { className: "section-heading one-sided-heading" }, "One-sided coverage", h("span", { className: "count-badge" }, response.one_sided_options.length)),
       h("p", { className: "section-desc" }, "They pick up your shift, nothing in return — fallback only."),
-      h("div", { className: "options-list" }, ...response.one_sided_options.map((opt, i) => h(OptionCard, { key: i, opt })))
+      h("div", { className: "options-list" }, ...response.one_sided_options.map((opt, i) => h(OptionCard, { key: i, opt, compareResidentId, onViewCalendar })))
     )
   );
 }
@@ -333,6 +363,12 @@ function App() {
   const [loadingSwap, setLoadingSwap] = useState(false);
   const [swapError, setSwapError] = useState(null);
 
+  // Compare calendar state
+  const [compareResident, setCompareResident] = useState(null);
+  const [compareAssignments, setCompareAssignments] = useState([]);
+  // Highlight dates on the compare calendar when viewing a swap option
+  const [swapHighlightDates, setSwapHighlightDates] = useState([]);
+
   const loadResidents = useCallback(async () => {
     try {
       const list = await api.getResidents();
@@ -343,6 +379,7 @@ function App() {
 
   useEffect(() => { loadResidents(); }, []);
 
+  // Load requester's schedule when selection or month changes
   useEffect(() => {
     if (!selected) return;
     const start = isoDate(year, month, 1);
@@ -351,6 +388,15 @@ function App() {
     api.getSchedule(selected.id, start, end).then(setAssignments).catch(() => setAssignments([]));
     setSelectedDate(null); setSwapResult(null);
   }, [selected, year, month]);
+
+  // Load compare resident's schedule when compare selection or month changes
+  useEffect(() => {
+    if (!compareResident) { setCompareAssignments([]); return; }
+    const start = isoDate(year, month, 1);
+    const last = new Date(year, month, 0).getDate();
+    const end = isoDate(year, month, last);
+    api.getSchedule(compareResident.id, start, end).then(setCompareAssignments).catch(() => setCompareAssignments([]));
+  }, [compareResident, year, month]);
 
   async function handleDateSelect(date, shift) {
     setSelectedDate(date); setSwapResult(null); setSwapError(null);
@@ -365,12 +411,30 @@ function App() {
     finally { setLoadingSwap(false); }
   }
 
+  // When "View calendar" is clicked on a swap option card
+  function handleViewCalendar(coverer, opt) {
+    if (compareResident?.id === coverer.id) {
+      // Toggle off
+      setCompareResident(null);
+      setSwapHighlightDates([]);
+      return;
+    }
+    setCompareResident(coverer);
+    // Highlight the relevant dates on the compare calendar
+    const dates = [];
+    if (selectedDate) dates.push(selectedDate); // requester's date they want off (coverer picks this up)
+    if (opt.mutual?.requester_covers_date) dates.push(opt.mutual.requester_covers_date); // coverer gives this up
+    setSwapHighlightDates(dates);
+  }
+
   function prevMonth() { if (month === 1) { setYear(y=>y-1); setMonth(12); } else setMonth(m=>m-1); }
   function nextMonth() { if (month === 12) { setYear(y=>y+1); setMonth(1); } else setMonth(m=>m+1); }
 
   if (residents !== null && residents.length === 0) {
     return h("div", { className: "app-shell" }, h(UploadPanel, { onUploaded: loadResidents }));
   }
+
+  const otherResidents = (residents || []).filter(r => r.id !== selected?.id);
 
   return h("div", { className: "app-shell" },
     h("header", { className: "app-header" },
@@ -392,11 +456,15 @@ function App() {
     ),
     h("div", { className: "app-body" },
       h("aside", { className: "sidebar" },
-        h("label", { className: "field-label" }, "Resident"),
+        h("label", { className: "field-label" }, "Your schedule"),
         h("select", {
           className: "resident-select",
           value: selected?.id ?? "",
-          onChange: e => setSelected(residents?.find(r => r.id === Number(e.target.value)))
+          onChange: e => {
+            const r = residents?.find(r => r.id === Number(e.target.value));
+            setSelected(r);
+            if (compareResident?.id === r?.id) setCompareResident(null);
+          }
         },
           (residents || []).map(r => h("option", { key: r.id, value: r.id }, `${r.name} (${r.level})`))
         ),
@@ -405,13 +473,45 @@ function App() {
           h("div", { className: `resident-level level-${selected.level.toLowerCase()}` }, `${selected.level} Resident`),
           h("div", { className: "resident-stats" }, `${assignments.length} shift${assignments.length !== 1 ? "s" : ""} this month`)
         ),
-        h("div", { className: "sidebar-hint" }, "Click a working day on the calendar to see swap options.")
+        h("hr", { className: "sidebar-divider" }),
+        h("div", { className: "compare-label-row" },
+          h("label", { className: "field-label" }, "Compare with"),
+          compareResident && h("button", { className: "compare-clear-btn", onClick: () => { setCompareResident(null); setSwapHighlightDates([]); } }, "Clear")
+        ),
+        h("select", {
+          className: "resident-select",
+          value: compareResident?.id ?? "",
+          onChange: e => {
+            const val = e.target.value;
+            if (!val) { setCompareResident(null); setSwapHighlightDates([]); return; }
+            setCompareResident(residents?.find(r => r.id === Number(val)) || null);
+            setSwapHighlightDates([]);
+          }
+        },
+          h("option", { value: "" }, "— None —"),
+          otherResidents.map(r => h("option", { key: r.id, value: r.id }, `${r.name} (${r.level})`))
+        ),
+        compareResident && h("div", { className: "resident-card" },
+          h("div", { className: "resident-name" }, compareResident.name),
+          h("div", { className: `resident-level level-${compareResident.level.toLowerCase()}` }, `${compareResident.level} Resident`),
+          h("div", { className: "resident-stats" }, `${compareAssignments.length} shift${compareAssignments.length !== 1 ? "s" : ""} this month`)
+        ),
+        h("div", { className: "sidebar-hint" }, "Click a working day to find swap options. Use \"View calendar\" on any result to see a coverer's schedule.")
       ),
       h("main", { className: "main-content" },
         residents === null
           ? h("div", { className: "loading-state" }, h("span", { className: "spinner" }), " Loading…")
           : h(React.Fragment, null,
-              h(Calendar, { year, month, assignments, selectedDate, onSelectDate: handleDateSelect, onPrev: prevMonth, onNext: nextMonth }),
+              h("div", { className: "calendars-row" },
+                h("div", { className: "calendar-wrapper" },
+                  h("div", { className: "calendar-owner-label" }, selected?.name || "Your schedule"),
+                  h(Calendar, { year, month, assignments, selectedDate, onSelectDate: handleDateSelect, onPrev: prevMonth, onNext: nextMonth, readOnly: false, highlightDates: [] })
+                ),
+                compareResident && h("div", { className: "calendar-wrapper" },
+                  h("div", { className: "calendar-owner-label compare-label" }, compareResident.name),
+                  h(Calendar, { year, month, assignments: compareAssignments, selectedDate: null, onSelectDate: () => {}, onPrev: prevMonth, onNext: nextMonth, readOnly: true, highlightDates: swapHighlightDates })
+                )
+              ),
               h("div", { className: "results-area" },
                 loadingSwap && h("div", { className: "loading-state" }, h("span", { className: "spinner" }), " Finding swap options…"),
                 swapError && (swapError.startsWith("__non_swappable__")
@@ -422,7 +522,12 @@ function App() {
                       )
                     )
                   : h("div", { className: "error-state" }, swapError)),
-                swapResult && !loadingSwap && h(SwapResults, { response: swapResult, onClose: () => { setSwapResult(null); setSelectedDate(null); } }),
+                swapResult && !loadingSwap && h(SwapResults, {
+                  response: swapResult,
+                  onClose: () => { setSwapResult(null); setSelectedDate(null); setSwapHighlightDates([]); },
+                  compareResidentId: compareResident?.id,
+                  onViewCalendar: handleViewCalendar,
+                }),
                 !loadingSwap && !swapResult && !swapError && h("div", { className: "empty-hint" }, "Select a shift on the calendar to find swap options.")
               )
             )

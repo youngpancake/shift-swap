@@ -1,0 +1,37 @@
+name: Sync QGenda Schedule
+
+on:
+  schedule:
+    # Runs every Monday at 7:00 AM UTC (midnight Pacific / 3 AM Eastern)
+    # Change this to suit your schedule: https://crontab.guru
+    - cron: "0 7 * * 1"
+  workflow_dispatch:  # Also allows manual trigger from GitHub UI
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install -r sync/requirements.txt
+          playwright install chromium
+          playwright install-deps chromium
+
+      - name: Run sync
+        env:
+          QGENDA_EMAIL:     ${{ secrets.QGENDA_EMAIL }}
+          QGENDA_PASSWORD:  ${{ secrets.QGENDA_PASSWORD }}
+          APP_URL:          ${{ secrets.APP_URL }}
+          APP_ACCESS_CODE:  ${{ secrets.APP_ACCESS_CODE }}
+          MONTHS_AHEAD:     "3"
+        run: python sync/sync_schedule.py
