@@ -104,6 +104,16 @@
 
     .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid #e5e7eb; border-top-color: #3b82f6; border-radius: 50%; animation: spin .7s linear infinite; flex-shrink: 0; }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Non-swappable shifts (Vacation, ICU, Jeopardy, etc.) */
+    .cal-cell.not-swappable { cursor: default !important; }
+    .cal-cell.not-swappable:hover { transform: none !important; box-shadow: none !important; }
+    .shift-busy { background: #f3f4f6 !important; color: #6b7280 !important; }
+    .non-swap-notice { background: #fefce8; border: 1px solid #fde68a; color: #92400e; padding: 14px 16px; border-radius: 10px; font-size: 14px; display: flex; align-items: flex-start; gap: 10px; }
+    .non-swap-notice strong { display: block; margin-bottom: 2px; }
+
+    /* Shift area badge in calendar */
+    .shift-tag { font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: #374151; margin-top: 2px; text-align: center; line-height: 1.2; }
   </style>
 </head>
 <body>
@@ -129,11 +139,25 @@ function isoDate(y, m, d) {
 function fmtDate(iso) {
   return new Date(iso + "T12:00:00").toLocaleDateString("en-US", {weekday:"short", month:"short", day:"numeric"});
 }
-function shiftColor(type) {
-  return type === "Day" ? "shift-day" : type === "Swing" ? "shift-swing" : type === "Night" ? "shift-night" : "shift-unknown";
+function shiftColor(shift) {
+  if (!shift.is_swappable) return "shift-busy";
+  return shift.shift_type === "Day" ? "shift-day" : shift.shift_type === "Swing" ? "shift-swing" : shift.shift_type === "Night" ? "shift-night" : "shift-unknown";
 }
 function badgeClass(type) {
   return type === "Day" ? "badge-day" : type === "Swing" ? "badge-swing" : type === "Night" ? "badge-night" : "badge-unknown";
+}
+const AREA_ABBR = { "Green": "Grn", "Purple": "Prp", "Peds": "Peds", "Fast Track": "FT", "Triage": "Tri" };
+function shiftLabel(shift) {
+  if (!shift.is_swappable) {
+    // Show first word of non-swappable shift name (Vacation, ICU, Jeopardy, etc.)
+    return shift.shift_name.split(" ")[0].slice(0, 9);
+  }
+  const abbr = AREA_ABBR[shift.shift_area] || "";
+  return abbr ? `${abbr} · ${shift.shift_type[0]}` : shift.shift_type;
+}
+function areaLabel(area, type) {
+  const abbr = AREA_ABBR[area] || area;
+  return abbr ? `${abbr} · ${type}` : type;
 }
 
 // ---- Components ----
@@ -208,14 +232,15 @@ function Calendar({ year, month, assignments, selectedDate, onSelectDate, onPrev
         const iso = isoDate(year, month, day);
         const shift = working.get(iso);
         const isSelected = iso === selectedDate;
+        const isSwappable = shift ? shift.is_swappable : false;
         return h("div", {
           key: iso,
-          className: ["cal-cell", shift ? "working" : "off", shift ? shiftColor(shift.shift_type) : "", isSelected ? "selected" : ""].join(" "),
-          onClick: () => shift && onSelectDate(iso),
+          className: ["cal-cell", shift ? "working" : "off", shift ? shiftColor(shift) : "", isSelected ? "selected" : "", shift && !isSwappable ? "not-swappable" : ""].join(" "),
+          onClick: () => shift && onSelectDate(iso, shift),
           title: shift ? shift.shift_name : "Off",
         },
           h("span", { className: "day-num" }, day),
-          shift && h("span", { className: "shift-tag" }, shift.shift_type)
+          shift && h("span", { className: "shift-tag" }, shiftLabel(shift))
         );
       })
     ),
@@ -223,6 +248,7 @@ function Calendar({ year, month, assignments, selectedDate, onSelectDate, onPrev
       h("span", { className: "legend-item shift-day" }, "Day"),
       h("span", { className: "legend-item shift-swing" }, "Swing"),
       h("span", { className: "legend-item shift-night" }, "Night"),
+      h("span", { className: "legend-item shift-busy" }, "Busy"),
       h("span", { className: "legend-item off" }, "Off"),
     )
   );
@@ -239,17 +265,27 @@ function OptionCard({ opt }) {
         ? h("div", { className: "swap-exchange" },
             h("div", { className: "swap-side" },
               h("div", { className: "swap-label" }, "They cover your shift"),
-              h("div", { className: "swap-shift" }, h(ShiftBadge, { type: opt.covered_shift_type }), h("span", null, opt.covered_shift_name))
+              h("div", { className: "swap-shift" },
+                h(ShiftBadge, { type: opt.covered_shift_type }),
+                h("span", null, areaLabel(opt.covered_shift_area, opt.covered_shift_type))
+              )
             ),
             h("div", { className: "swap-arrow" }, "⇄"),
             h("div", { className: "swap-side" },
               h("div", { className: "swap-label" }, `You cover ${fmtDate(opt.mutual.requester_covers_date)}`),
-              h("div", { className: "swap-shift" }, h(ShiftBadge, { type: opt.mutual.requester_covers_shift_type }), h("span", null, opt.mutual.requester_covers_shift_name))
+              h("div", { className: "swap-shift" },
+                h(ShiftBadge, { type: opt.mutual.requester_covers_shift_type }),
+                h("span", null, areaLabel(opt.mutual.requester_covers_shift_area, opt.mutual.requester_covers_shift_type))
+              )
             )
           )
         : h("div", { className: "one-sided-info" },
             h(ShiftBadge, { type: opt.covered_shift_type }),
-            h("span", null, "Covers your ", h("strong", null, opt.covered_shift_name), " shift (one-sided)")
+            h("span", null,
+              "Covers your ",
+              h("strong", null, areaLabel(opt.covered_shift_area, opt.covered_shift_type)),
+              " shift (one-sided)"
+            )
           )
     )
   );
@@ -316,9 +352,13 @@ function App() {
     setSelectedDate(null); setSwapResult(null);
   }, [selected, year, month]);
 
-  async function handleDateSelect(date) {
+  async function handleDateSelect(date, shift) {
     setSelectedDate(date); setSwapResult(null); setSwapError(null);
     if (!selected) return;
+    if (shift && !shift.is_swappable) {
+      setSwapError(`__non_swappable__${shift.shift_name}`);
+      return;
+    }
     setLoadingSwap(true);
     try { setSwapResult(await api.getSwapOptions(selected.id, date)); }
     catch (e) { setSwapError(typeof e === "string" ? e : "Failed to load swap options."); }
@@ -374,7 +414,14 @@ function App() {
               h(Calendar, { year, month, assignments, selectedDate, onSelectDate: handleDateSelect, onPrev: prevMonth, onNext: nextMonth }),
               h("div", { className: "results-area" },
                 loadingSwap && h("div", { className: "loading-state" }, h("span", { className: "spinner" }), " Finding swap options…"),
-                swapError && h("div", { className: "error-state" }, swapError),
+                swapError && (swapError.startsWith("__non_swappable__")
+                  ? h("div", { className: "non-swap-notice" },
+                      h("div", null,
+                        h("strong", null, "Cannot be swapped"),
+                        `"${swapError.replace("__non_swappable__", "")}" is not an ED clinical shift and cannot be requested for a swap.`
+                      )
+                    )
+                  : h("div", { className: "error-state" }, swapError)),
                 swapResult && !loadingSwap && h(SwapResults, { response: swapResult, onClose: () => { setSwapResult(null); setSelectedDate(null); } }),
                 !loadingSwap && !swapResult && !swapError && h("div", { className: "empty-hint" }, "Select a shift on the calendar to find swap options.")
               )
