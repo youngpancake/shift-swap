@@ -1,0 +1,50 @@
+from __future__ import annotations
+from sqlalchemy import create_engine, Column, Integer, String, Date, Boolean, UniqueConstraint, Index
+from sqlalchemy.orm import DeclarativeBase, sessionmaker, Session
+
+DATABASE_URL = "sqlite:///./shift_swap.db"
+
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+class ResidentRow(Base):
+    __tablename__ = "residents"
+
+    id    = Column(Integer, primary_key=True, index=True)
+    name  = Column(String, unique=True, nullable=False)
+    level = Column(String, nullable=False, default="Unknown")  # Sr | Jr | Unknown
+
+
+class ShiftAssignmentRow(Base):
+    __tablename__ = "shift_assignments"
+
+    id           = Column(Integer, primary_key=True, index=True)
+    resident_id  = Column(Integer, nullable=False)
+    work_date    = Column(Date, nullable=False)
+    shift_name   = Column(String, nullable=False)
+    shift_type   = Column(String, nullable=False, default="Unknown")
+    seniority    = Column(String, nullable=False, default="Unknown")
+    shift_area   = Column(String, nullable=False, default="")
+    is_swappable = Column(Boolean, nullable=False, default=False)
+
+    __table_args__ = (
+        UniqueConstraint("resident_id", "work_date", name="uq_resident_date"),
+        Index("ix_work_date", "work_date"),
+    )
+
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+def init_db():
+    Base.metadata.create_all(bind=engine)

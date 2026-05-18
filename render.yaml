@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: shift-swap
+    env: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: ACCESS_CODE
+        generateValue: true   # Render auto-generates a random password
