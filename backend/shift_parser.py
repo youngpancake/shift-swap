@@ -38,10 +38,13 @@ _AREA_PATTERNS: list[tuple[re.Pattern, str]] = [
 # These mark a resident as busy but cannot be requested or offered for swapping.
 _NON_SWAPPABLE_RE = re.compile(
     r'^(jeopardy|icu|selective|elective|vacation|st\.?\s*mary|social|'
-    r'conference|lbm|off.?service|ems|base.?training|chief.?on.?call|'
-    r'aed.?post|orientation|closed)',
+    r'lbm|off.?service|ems|base.?training|chief.?on.?call|'
+    r'orientation|closed)',
     re.IGNORECASE,
 )
+
+# Entries to drop entirely — not shifts, just calendar noise
+SKIP_ENTRY_RE = re.compile(r'^conference$', re.IGNORECASE)
 
 
 def parse_shift_name(name: str) -> tuple[ShiftType, SeniorityLevel]:

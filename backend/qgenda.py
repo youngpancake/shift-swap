@@ -21,7 +21,7 @@ from typing import Optional
 import httpx
 from dateutil import parser as dateutil_parser
 
-from shift_parser import parse_shift_name, parse_shift_area, is_shift_swappable, infer_resident_level
+from shift_parser import parse_shift_name, parse_shift_area, is_shift_swappable, infer_resident_level, SKIP_ENTRY_RE
 from models import SeniorityLevel
 
 
@@ -108,6 +108,9 @@ def parse_qgenda_calendar(content: str | bytes) -> list[dict]:
 
             name = _clean_name(name_raw)
             if not name or _NON_PERSON_RE.match(name):
+                continue
+
+            if SKIP_ENTRY_RE.match(shift_raw):
                 continue
 
             shift_type, seniority = parse_shift_name(shift_raw)
