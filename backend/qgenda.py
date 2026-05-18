@@ -150,13 +150,12 @@ def _find_col(columns: list[str], pattern: re.Pattern) -> Optional[str]:
 
 
 def _parse_tabular(content: str) -> list[dict]:
-    import pandas as pd
-    df = pd.read_csv(StringIO(content))
-    cols = df.columns.tolist()
+    reader = csv.DictReader(StringIO(content))
+    cols = reader.fieldnames or []
 
-    date_col = _find_col(cols, _COL_DATE)
-    name_col = _find_col(cols, _COL_NAME)
-    shift_col = _find_col(cols, _COL_SHIFT)
+    date_col = _find_col(list(cols), _COL_DATE)
+    name_col = _find_col(list(cols), _COL_NAME)
+    shift_col = _find_col(list(cols), _COL_SHIFT)
 
     missing = [
         label for label, col in [("date", date_col), ("name", name_col), ("shift", shift_col)]
@@ -165,22 +164,22 @@ def _parse_tabular(content: str) -> list[dict]:
     if missing:
         raise ValueError(
             f"Could not find columns for: {', '.join(missing)}. "
-            f"Available columns: {cols}"
+            f"Available columns: {list(cols)}"
         )
 
     rows = []
-    for _, row in df.iterrows():
-        raw_date = row[date_col]
-        if pd.isna(raw_date):
+    for row in reader:
+        raw_date = row[date_col].strip()
+        if not raw_date:
             continue
         try:
-            work_date = pd.to_datetime(raw_date).date()
+            work_date = dateutil_parser.parse(raw_date).date()
         except Exception:
             continue
 
-        name = str(row[name_col]).strip()
-        shift_name = str(row[shift_col]).strip()
-        if not name or not shift_name or name.lower() in ("nan", "") or shift_name.lower() in ("nan", ""):
+        name = row[name_col].strip()
+        shift_name = row[shift_col].strip()
+        if not name or not shift_name:
             continue
 
         shift_type, seniority = parse_shift_name(shift_name)
