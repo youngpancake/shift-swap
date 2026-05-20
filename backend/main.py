@@ -12,14 +12,15 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
-from database import get_db, init_db, ResidentRow, ShiftAssignmentRow
+from database import get_db, init_db, ResidentRow, ShiftAssignmentRow, MarketplaceRequestRow
 from models import (
     Resident, ShiftAssignment, ShiftType, SeniorityLevel,
-    SwapRequest, SwapResponse,
+    SwapRequest, SwapResponse, MarketplaceResult,
 )
 from qgenda import parse_csv, get_api_client
 from shift_parser import infer_resident_level
 from swap_engine import find_swap_options
+from marketplace import find_swap_cycles
 
 # ---------------------------------------------------------------------------
 # Optional password protection
@@ -331,3 +332,132 @@ def schedule_summary(
             }
         )
     return result
+
+
+# ---------------------------------------------------------------------------
+# Marketplace
+# ---------------------------------------------------------------------------
+
+def _match_resident_name(raw_name: str, residents: list[ResidentRow]) -> Optional[ResidentRow]:
+    """Match a name from the requests CSV to a ResidentRow (case-insensitive).
+    Tries exact match, then reversed 'First Last' → 'Last, First'."""
+    normalized = raw_name.strip().lower()
+    for r in residents:
+        if r.name.lower() == normalized:
+            return r
+    # Try reversing "First Last" → "Last, First"
+    parts = raw_name.strip().split()
+    if len(parts) >= 2:
+        reversed_name = f"{parts[-1]}, {' '.join(parts[:-1])}".lower()
+        for r in residents:
+            if r.name.lower() == reversed_name:
+                return r
+    return None
+
+
+@app.post("/marketplace/requests")
+async def upload_marketplace_requests(file: UploadFile = File(...), db: Session = Depends(get_db)):
+    """Upload a CSV of date requests. Columns: Name, Date (one request per row)."""
+    import csv as csv_mod
+    from io import StringIO
+
+    content = (await file.read()).decode("utf-8-sig")
+    reader = csv_mod.DictReader(StringIO(content))
+    if not reader.fieldnames:
+        raise HTTPException(status_code=422, detail="CSV has no header row.")
+
+    # Find name and date columns (case-insensitive)
+    fields = [f.strip() for f in reader.fieldnames]
+    name_col = next((f for f in fields if "name" in f.lower()), None)
+    date_col = next((f for f in fields if "date" in f.lower()), None)
+    if not name_col or not date_col:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Need 'Name' and 'Date' columns. Found: {fields}"
+        )
+
+    from dateutil import parser as dateutil_parser
+    all_residents = db.query(ResidentRow).all()
+    skipped: list[str] = []
+    added = 0
+
+    for row in reader:
+        raw_name = (row.get(name_col) or "").strip()
+        raw_date = (row.get(date_col) or "").strip()
+        if not raw_name or not raw_date:
+            continue
+        resident = _match_resident_name(raw_name, all_residents)
+        if not resident:
+            skipped.append(f"{raw_name}: not found in schedule")
+            continue
+        try:
+            req_date = dateutil_parser.parse(raw_date).date()
+        except Exception:
+            skipped.append(f"{raw_name} — bad date: {raw_date}")
+            continue
+
+        existing = (
+            db.query(MarketplaceRequestRow)
+            .filter(MarketplaceRequestRow.resident_id == resident.id,
+                    MarketplaceRequestRow.requested_date == req_date)
+            .first()
+        )
+        if not existing:
+            db.add(MarketplaceRequestRow(resident_id=resident.id, requested_date=req_date))
+            added += 1
+
+    db.commit()
+    return {"added": added, "skipped": skipped}
+
+
+@app.get("/marketplace/requests")
+def list_marketplace_requests(db: Session = Depends(get_db)):
+    """Return all current date requests grouped by resident."""
+    rows = db.query(MarketplaceRequestRow).all()
+    residents = {r.id: r.name for r in db.query(ResidentRow).all()}
+    result: dict[str, list[str]] = {}
+    for r in rows:
+        name = residents.get(r.resident_id, f"ID {r.resident_id}")
+        result.setdefault(name, []).append(r.requested_date.isoformat())
+    return result
+
+
+@app.delete("/marketplace/requests")
+def clear_marketplace_requests(db: Session = Depends(get_db)):
+    """Delete all marketplace date requests."""
+    deleted = db.query(MarketplaceRequestRow).delete()
+    db.commit()
+    return {"deleted": deleted}
+
+
+@app.get("/marketplace/cycles", response_model=MarketplaceResult)
+def get_marketplace_cycles(db: Session = Depends(get_db)):
+    """Find all valid swap cycles across the current set of date requests."""
+    request_rows = db.query(MarketplaceRequestRow).all()
+    if not request_rows:
+        return MarketplaceResult(cycles=[], total_cycles=0, skipped_requests=[])
+
+    resident_rows = db.query(ResidentRow).all()
+    residents_map: dict[int, Resident] = {
+        r.id: Resident(id=r.id, name=r.name, level=SeniorityLevel(r.level))
+        for r in resident_rows
+    }
+
+    # Load schedules for all residents who have requests
+    involved_ids = list({r.resident_id for r in request_rows})
+    schedules = _load_schedule(involved_ids, db)
+
+    requests = [(r.resident_id, r.requested_date) for r in request_rows]
+
+    # Flag requests where the resident has no swappable shift that day
+    skipped: list[str] = []
+    for (rid, d) in requests:
+        shift = schedules.get(rid, {}).get(d)
+        name = residents_map.get(rid, Resident(id=rid, name=f"ID {rid}", level=SeniorityLevel.UNKNOWN)).name
+        if not shift:
+            skipped.append(f"{name} — not scheduled on {d}")
+        elif not shift.is_swappable:
+            skipped.append(f"{name} on {d} — shift '{shift.shift_name}' is not swappable")
+
+    cycles = find_swap_cycles(requests, schedules, residents_map)
+    return MarketplaceResult(cycles=cycles, total_cycles=len(cycles), skipped_requests=skipped)

@@ -68,6 +68,30 @@ class SwapOption(BaseModel):
     mutual: Optional[MutualDetail] = None
 
 
+class SwapLeg(BaseModel):
+    """One participant's role in a marketplace swap cycle."""
+    resident: Resident
+    gives_up_date: date
+    gives_up_shift_name: str
+    gives_up_shift_type: ShiftType
+    gives_up_shift_area: str
+    picks_up_date: date
+    picks_up_shift_name: str
+    picks_up_shift_type: ShiftType
+    picks_up_shift_area: str
+
+
+class MarketplaceSwapCycle(BaseModel):
+    cycle_length: int
+    legs: list[SwapLeg]
+
+
+class MarketplaceResult(BaseModel):
+    cycles: list[MarketplaceSwapCycle]
+    total_cycles: int
+    skipped_requests: list[str]  # requested dates where resident has no swappable shift
+
+
 class SwapRequest(BaseModel):
     resident_id: int
     request_date: date

@@ -36,6 +36,9 @@
     .compare-label-row { display: flex; align-items: center; justify-content: space-between; }
     .main-content { flex: 1; padding: 24px; display: flex; flex-direction: column; gap: 20px; overflow-y: auto; min-width: 0; }
 
+    /* Mobile controls (hidden on desktop, shown on mobile) */
+    .mobile-controls { display: none; }
+
     /* Calendars side by side */
     .calendars-row { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; }
     .calendar-wrapper { display: flex; flex-direction: column; gap: 8px; }
@@ -46,9 +49,27 @@
     .calendar { background: #fff; border-radius: 14px; border: 1px solid #e5e7eb; padding: 20px; width: 360px; min-width: 300px; }
     .calendar.compare-calendar { border-color: #bae6fd; }
     .calendar-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .calendar-header.collapsed { margin-bottom: 0; }
     .calendar-title { font-size: 16px; font-weight: 600; }
+    .cal-header-right { display: flex; align-items: center; gap: 4px; }
+    .cal-toggle-btn { background: none; border: 1px solid #e5e7eb; border-radius: 8px; width: 32px; height: 32px; font-size: 14px; display: flex; align-items: center; justify-content: center; color: #6b7280; transition: background .1s; }
+    .cal-toggle-btn:hover { background: #f3f4f6; color: #1a1d23; }
     .nav-btn { background: none; border: 1px solid #e5e7eb; border-radius: 8px; width: 32px; height: 32px; font-size: 18px; display: flex; align-items: center; justify-content: center; color: #374151; }
     .nav-btn:hover { background: #f3f4f6; }
+
+    /* Mobile responsive */
+    @media (max-width: 768px) {
+      .sidebar { display: none; }
+      .main-content { padding: 12px; gap: 12px; }
+      .mobile-controls { display: flex; flex-direction: column; gap: 8px; background: #fff; border-radius: 12px; border: 1px solid #e5e7eb; padding: 12px 14px; }
+      .mobile-control-row { display: flex; flex-direction: column; gap: 4px; }
+      .mobile-compare-label { display: flex; align-items: center; justify-content: space-between; }
+      .calendars-row { flex-direction: column; gap: 12px; }
+      .calendar { width: 100%; min-width: unset; padding: 14px; }
+      .cal-cell { font-size: 12px; }
+      .calendar-legend { gap: 6px; }
+      .legend-item { font-size: 10px; padding: 2px 7px; }
+    }
     .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
     .cal-label { text-align: center; font-size: 11px; font-weight: 600; color: #9ca3af; padding: 4px 0; text-transform: uppercase; letter-spacing: .04em; }
     .cal-cell { aspect-ratio: 1; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 13px; position: relative; transition: transform .1s, box-shadow .1s; }
@@ -122,6 +143,47 @@
     .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid #e5e7eb; border-top-color: #3b82f6; border-radius: 50%; animation: spin .7s linear infinite; flex-shrink: 0; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
+    /* Tab navigation */
+    .tab-bar { background: #fff; border-bottom: 1px solid #e5e7eb; display: flex; padding: 0 24px; gap: 4px; }
+    .tab-btn { background: none; border: none; padding: 14px 18px; font-size: 14px; font-weight: 500; color: #6b7280; border-bottom: 2px solid transparent; margin-bottom: -1px; cursor: pointer; transition: color .15s; }
+    .tab-btn:hover { color: #1a1d23; }
+    .tab-btn.active { color: #3b82f6; border-bottom-color: #3b82f6; font-weight: 600; }
+
+    /* Marketplace page */
+    .mp-shell { flex: 1; padding: 24px; display: flex; flex-direction: column; gap: 20px; overflow-y: auto; max-width: 860px; }
+    .mp-section { background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; padding: 20px; }
+    .mp-section-title { font-size: 15px; font-weight: 600; margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+    .mp-drop-zone { border: 2px dashed #d1d5db; border-radius: 10px; padding: 24px; text-align: center; cursor: pointer; font-size: 14px; color: #6b7280; display: flex; align-items: center; justify-content: center; gap: 10px; transition: border-color .15s, background .15s; }
+    .mp-drop-zone:hover, .mp-drop-zone.drag-over { border-color: #3b82f6; background: #eff6ff; color: #1d4ed8; }
+    .mp-drop-zone.loading { pointer-events: none; opacity: .7; }
+    .mp-template-hint { font-size: 12px; color: #9ca3af; margin-top: 10px; }
+    .mp-template-hint code { background: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+    .mp-requests-list { display: flex; flex-direction: column; gap: 8px; }
+    .mp-request-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: #f8fafc; border-radius: 8px; font-size: 13px; }
+    .mp-request-name { font-weight: 600; min-width: 160px; }
+    .mp-request-dates { display: flex; gap: 6px; flex-wrap: wrap; }
+    .mp-date-pill { background: #e0f2fe; color: #0369a1; border-radius: 20px; padding: 2px 10px; font-size: 12px; font-weight: 500; }
+    .mp-clear-btn { margin-left: auto; background: none; border: 1px solid #fca5a5; color: #b91c1c; border-radius: 6px; padding: 4px 12px; font-size: 12px; cursor: pointer; }
+    .mp-clear-btn:hover { background: #fef2f2; }
+    .mp-find-btn { background: #3b82f6; color: #fff; border: none; border-radius: 8px; padding: 10px 22px; font-size: 14px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+    .mp-find-btn:hover { background: #2563eb; }
+    .mp-find-btn:disabled { opacity: .6; cursor: default; }
+    .mp-skipped { margin-top: 12px; font-size: 12px; color: #9ca3af; }
+    .mp-skipped li { margin-left: 16px; }
+
+    /* Cycle cards */
+    .cycle-group { margin-bottom: 24px; }
+    .cycle-group-title { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: #059669; display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .cycle-card { border: 1px solid #d1fae5; border-radius: 12px; overflow: hidden; margin-bottom: 12px; background: #f0fdf4; }
+    .cycle-card-header { background: #dcfce7; padding: 10px 16px; font-size: 13px; font-weight: 600; color: #166534; display: flex; align-items: center; gap: 8px; }
+    .cycle-legs { display: flex; flex-direction: column; }
+    .cycle-leg { padding: 12px 16px; border-top: 1px solid #d1fae5; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 13px; background: #fff; }
+    .cycle-leg:first-child { border-top: none; }
+    .cycle-leg-name { font-weight: 600; min-width: 150px; }
+    .cycle-leg-gives { color: #b91c1c; display: flex; align-items: center; gap: 6px; }
+    .cycle-leg-gets { color: #059669; display: flex; align-items: center; gap: 6px; }
+    .cycle-arrow { font-size: 16px; color: #9ca3af; }
+
     /* Non-swappable shifts */
     .cal-cell.not-swappable { cursor: default !important; }
     .cal-cell.not-swappable:hover { transform: none !important; box-shadow: none !important; }
@@ -143,6 +205,10 @@ const api = {
   getSchedule: (id, start, end) => fetch(`/residents/${id}/schedule?start_date=${start}&end_date=${end}`).then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(e.detail))),
   getSwapOptions: (id, date) => fetch("/swap-options", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({resident_id: id, request_date: date}) }).then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(e.detail))),
   uploadCSV: (file) => { const fd = new FormData(); fd.append("file", file); return fetch("/upload-csv", {method:"POST", body:fd}).then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(e.detail))); },
+  uploadRequests: (file) => { const fd = new FormData(); fd.append("file", file); return fetch("/marketplace/requests", {method:"POST", body:fd}).then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(e.detail))); },
+  getRequests: () => fetch("/marketplace/requests").then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(e.detail))),
+  clearRequests: () => fetch("/marketplace/requests", {method:"DELETE"}).then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(e.detail))),
+  getCycles: () => fetch("/marketplace/cycles").then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(e.detail))),
 };
 
 // ---- Helpers ----
@@ -226,7 +292,7 @@ function UploadPanel({ onUploaded }) {
 }
 
 // highlightDates: set of ISO date strings to ring in green (swap dates)
-function Calendar({ year, month, assignments, selectedDate, onSelectDate, onPrev, onNext, readOnly, highlightDates }) {
+function Calendar({ year, month, assignments, selectedDate, onSelectDate, onPrev, onNext, readOnly, highlightDates, collapsed, onToggleCollapse }) {
   const working = new Map(assignments.map(a => [a.work_date, a]));
   const highlights = new Set(highlightDates || []);
   const firstDay = new Date(year, month - 1, 1).getDay();
@@ -235,12 +301,15 @@ function Calendar({ year, month, assignments, selectedDate, onSelectDate, onPrev
   while (cells.length % 7 !== 0) cells.push(null);
 
   return h("div", { className: `calendar${readOnly ? " compare-calendar" : ""}` },
-    h("div", { className: "calendar-header" },
+    h("div", { className: `calendar-header${collapsed ? " collapsed" : ""}` },
       h("button", { className: "nav-btn", onClick: onPrev }, "‹"),
       h("span", { className: "calendar-title" }, `${MONTHS[month-1]} ${year}`),
-      h("button", { className: "nav-btn", onClick: onNext }, "›")
+      h("div", { className: "cal-header-right" },
+        h("button", { className: "cal-toggle-btn", onClick: onToggleCollapse, title: collapsed ? "Expand" : "Collapse" }, collapsed ? "▸" : "▾"),
+        h("button", { className: "nav-btn", onClick: onNext }, "›")
+      )
     ),
-    h("div", { className: "calendar-grid" },
+    !collapsed && h("div", { className: "calendar-grid" },
       ...DAYS.map(d => h("div", { key: d, className: "cal-label" }, d)),
       ...cells.map((day, i) => {
         if (!day) return h("div", { key: `e${i}`, className: "cal-cell empty" });
@@ -268,7 +337,7 @@ function Calendar({ year, month, assignments, selectedDate, onSelectDate, onPrev
         );
       })
     ),
-    h("div", { className: "calendar-legend" },
+    !collapsed && h("div", { className: "calendar-legend" },
       h("span", { className: "legend-item shift-day" }, "Day"),
       h("span", { className: "legend-item shift-swing" }, "Swing"),
       h("span", { className: "legend-item shift-night" }, "Night"),
@@ -352,7 +421,181 @@ function SwapResults({ response, onClose, compareResidentId, onViewCalendar }) {
   );
 }
 
+// ---- Marketplace ----
+
+function CycleLegRow({ leg }) {
+  const AREA_ABBR = { "Green": "Grn", "Purple": "Prp", "Peds": "Peds", "Fast Track": "FT", "Triage": "Tri" };
+  function label(area, type) { const a = AREA_ABBR[area] || area; return a ? `${a} · ${type}` : type; }
+  return h("div", { className: "cycle-leg" },
+    h("span", { className: "cycle-leg-name" }, leg.resident.name),
+    h("span", { className: `level-badge level-${leg.resident.level.toLowerCase()}` }, leg.resident.level),
+    h("span", { className: "cycle-leg-gives" },
+      h("span", null, "gives up"),
+      h("strong", null, fmtDate(leg.gives_up_date)),
+      h("span", { className: `shift-badge ${badgeClass(leg.gives_up_shift_type)}` }, label(leg.gives_up_shift_area, leg.gives_up_shift_type))
+    ),
+    h("span", { className: "cycle-arrow" }, "→"),
+    h("span", { className: "cycle-leg-gets" },
+      h("span", null, "picks up"),
+      h("strong", null, fmtDate(leg.picks_up_date)),
+      h("span", { className: `shift-badge ${badgeClass(leg.picks_up_shift_type)}` }, label(leg.picks_up_shift_area, leg.picks_up_shift_type))
+    )
+  );
+}
+
+function CycleCard({ cycle, index }) {
+  const label = cycle.cycle_length === 2 ? "2-Way Swap" : cycle.cycle_length === 3 ? "3-Way Swap" : `${cycle.cycle_length}-Way Swap`;
+  const names = cycle.legs.map(l => l.resident.name.split(",")[0]).join(" ↔ ");
+  return h("div", { className: "cycle-card" },
+    h("div", { className: "cycle-card-header" },
+      h("span", null, `#${index + 1} — ${label}`),
+      h("span", { style: { fontWeight: 400, color: "#166534", marginLeft: 8 } }, names)
+    ),
+    h("div", { className: "cycle-legs" },
+      ...cycle.legs.map((leg, i) => h(CycleLegRow, { key: i, leg }))
+    )
+  );
+}
+
+function MarketplacePage() {
+  const [requests, setRequests] = useState(null);   // { name: [dates] }
+  const [uploading, setUploading] = useState(false);
+  const [uploadMsg, setUploadMsg] = useState(null);
+  const [uploadErr, setUploadErr] = useState(null);
+  const [cycles, setCycles] = useState(null);
+  const [skipped, setSkipped] = useState([]);
+  const [finding, setFinding] = useState(false);
+  const [findErr, setFindErr] = useState(null);
+  const inputRef = useRef(null);
+
+  const loadRequests = useCallback(async () => {
+    try { setRequests(await api.getRequests()); }
+    catch { setRequests({}); }
+  }, []);
+
+  useEffect(() => { loadRequests(); }, []);
+
+  async function handleFile(file) {
+    setUploading(true); setUploadMsg(null); setUploadErr(null); setCycles(null);
+    try {
+      const res = await api.uploadRequests(file);
+      setUploadMsg(`Added ${res.added} request${res.added !== 1 ? "s" : ""}.${res.skipped?.length ? ` ${res.skipped.length} unmatched.` : ""}`);
+      if (res.skipped?.length) setUploadErr(res.skipped.join("\n"));
+      await loadRequests();
+    } catch (e) { setUploadErr(typeof e === "string" ? e : "Upload failed."); }
+    finally { setUploading(false); }
+  }
+
+  async function handleClear() {
+    await api.clearRequests();
+    setRequests({}); setCycles(null); setSkipped([]); setUploadMsg(null); setUploadErr(null);
+  }
+
+  async function handleFind() {
+    setFinding(true); setFindErr(null); setCycles(null);
+    try {
+      const res = await api.getCycles();
+      setCycles(res.cycles);
+      setSkipped(res.skipped_requests || []);
+    } catch (e) { setFindErr(typeof e === "string" ? e : "Failed to find cycles."); }
+    finally { setFinding(false); }
+  }
+
+  const requestEntries = Object.entries(requests || {}).sort((a, b) => a[0].localeCompare(b[0]));
+  const totalRequests = requestEntries.reduce((n, [, dates]) => n + dates.length, 0);
+
+  // Group cycles by length
+  const cycleGroups = {};
+  (cycles || []).forEach(c => { (cycleGroups[c.cycle_length] = cycleGroups[c.cycle_length] || []).push(c); });
+
+  return h("div", { className: "mp-shell" },
+    // Upload section
+    h("div", { className: "mp-section" },
+      h("div", { className: "mp-section-title" }, "Upload Date Requests"),
+      h("div", {
+        className: `mp-drop-zone${uploading ? " loading" : ""}`,
+        onDragOver: e => e.preventDefault(),
+        onDrop: e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleFile(f); },
+        onClick: () => inputRef.current?.click(),
+      },
+        h("input", { ref: inputRef, type: "file", accept: ".csv", style: {display:"none"}, onChange: e => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; } }),
+        uploading ? h("span", { className: "spinner" }) : h("span", null, "⬆"),
+        h("span", null, uploading ? "Uploading…" : "Drop CSV here or click to browse")
+      ),
+      uploadMsg && h("div", { className: "upload-success", style: {marginTop: 10} }, uploadMsg),
+      uploadErr && h("pre", { className: "upload-error", style: {marginTop: 10, whiteSpace: "pre-wrap", fontSize: 12} }, uploadErr),
+      h("div", { className: "mp-template-hint" },
+        "CSV format: two columns — ",
+        h("code", null, "Name"), " and ", h("code", null, "Date"),
+        ". One row per request. Names must match the QGenda schedule."
+      )
+    ),
+
+    // Current requests
+    h("div", { className: "mp-section" },
+      h("div", { className: "mp-section-title" },
+        `Current Requests (${totalRequests})`,
+        totalRequests > 0 && h("button", { className: "mp-clear-btn", onClick: handleClear }, "Clear all")
+      ),
+      requests === null
+        ? h("div", { className: "loading-state" }, h("span", { className: "spinner" }), " Loading…")
+        : totalRequests === 0
+          ? h("div", { className: "empty-hint", style: {padding: "8px 0"} }, "No requests yet — upload a CSV above.")
+          : h("div", { className: "mp-requests-list" },
+              ...requestEntries.map(([name, dates]) =>
+                h("div", { key: name, className: "mp-request-row" },
+                  h("span", { className: "mp-request-name" }, name),
+                  h("div", { className: "mp-request-dates" },
+                    ...dates.sort().map(d => h("span", { key: d, className: "mp-date-pill" }, fmtDate(d)))
+                  )
+                )
+              )
+            )
+    ),
+
+    // Find cycles
+    totalRequests > 0 && h("div", { className: "mp-section" },
+      h("div", { className: "mp-section-title" }, "Find Swap Cycles"),
+      h("p", { style: {fontSize: 13, color: "#6b7280", marginBottom: 14} },
+        "Finds 2-way, 3-way, and up to 5-way swaps where everyone gets their requested date off. All scheduling rules apply."
+      ),
+      h("button", { className: "mp-find-btn", onClick: handleFind, disabled: finding },
+        finding ? h("span", { className: "spinner" }) : null,
+        finding ? "Searching…" : "Find Swap Cycles"
+      ),
+      findErr && h("div", { className: "error-state", style: {marginTop: 14} }, findErr),
+
+      cycles !== null && h("div", { style: {marginTop: 20} },
+        skipped.length > 0 && h("div", { className: "mp-skipped" },
+          h("strong", null, "Skipped (no swappable shift on requested date):"),
+          h("ul", null, ...skipped.map((s, i) => h("li", { key: i }, s)))
+        ),
+        cycles.length === 0
+          ? h("div", { className: "empty-state", style: {marginTop: 16} },
+              h("p", null, "No valid swap cycles found among these requests."),
+              h("p", null, "This may be because scheduling rules block all combinations, or no two residents are free to cover each other.")
+            )
+          : h("div", { style: {marginTop: 16} },
+              h("p", { style: {fontSize: 13, color: "#6b7280", marginBottom: 16} },
+                `Found ${cycles.length} valid swap cycle${cycles.length !== 1 ? "s" : ""}. Simpler swaps listed first.`
+              ),
+              ...[2, 3, 4, 5].filter(n => cycleGroups[n]).map(n =>
+                h("div", { key: n, className: "cycle-group" },
+                  h("div", { className: "cycle-group-title" },
+                    `${n}-Way Swaps`,
+                    h("span", { className: "count-badge" }, cycleGroups[n].length)
+                  ),
+                  ...cycleGroups[n].map((c, i) => h(CycleCard, { key: i, cycle: c, index: i }))
+                )
+              )
+            )
+      )
+    )
+  );
+}
+
 function App() {
+  const [tab, setTab] = useState("finder");
   const [residents, setResidents] = useState(null);
   const [selected, setSelected] = useState(null);
   const [year, setYear] = useState(new Date().getFullYear());
@@ -366,8 +609,10 @@ function App() {
   // Compare calendar state
   const [compareResident, setCompareResident] = useState(null);
   const [compareAssignments, setCompareAssignments] = useState([]);
-  // Highlight dates on the compare calendar when viewing a swap option
   const [swapHighlightDates, setSwapHighlightDates] = useState([]);
+  // Calendar collapse state
+  const [calCollapsed, setCalCollapsed] = useState(false);
+  const [compareCollapsed, setCompareCollapsed] = useState(false);
 
   const loadResidents = useCallback(async () => {
     try {
@@ -454,7 +699,12 @@ function App() {
         })
       )
     ),
-    h("div", { className: "app-body" },
+    h("nav", { className: "tab-bar" },
+      h("button", { className: `tab-btn${tab === "finder" ? " active" : ""}`, onClick: () => setTab("finder") }, "Swap Finder"),
+      h("button", { className: `tab-btn${tab === "marketplace" ? " active" : ""}`, onClick: () => setTab("marketplace") }, "Swap Marketplace")
+    ),
+    tab === "marketplace" && h(MarketplacePage, null),
+    tab === "finder" && h("div", { className: "app-body" },
       h("aside", { className: "sidebar" },
         h("label", { className: "field-label" }, "Your schedule"),
         h("select", {
@@ -502,14 +752,47 @@ function App() {
         residents === null
           ? h("div", { className: "loading-state" }, h("span", { className: "spinner" }), " Loading…")
           : h(React.Fragment, null,
+              h("div", { className: "mobile-controls" },
+                h("div", { className: "mobile-control-row" },
+                  h("label", { className: "field-label" }, "Your schedule"),
+                  h("select", {
+                    className: "resident-select",
+                    value: selected?.id ?? "",
+                    onChange: e => {
+                      const r = residents?.find(r => r.id === Number(e.target.value));
+                      setSelected(r);
+                      if (compareResident?.id === r?.id) setCompareResident(null);
+                    }
+                  }, (residents || []).map(r => h("option", { key: r.id, value: r.id }, `${r.name} (${r.level})`)))
+                ),
+                h("div", { className: "mobile-control-row" },
+                  h("div", { className: "mobile-compare-label" },
+                    h("label", { className: "field-label" }, "Compare with"),
+                    compareResident && h("button", { className: "compare-clear-btn", onClick: () => { setCompareResident(null); setSwapHighlightDates([]); } }, "Clear")
+                  ),
+                  h("select", {
+                    className: "resident-select",
+                    value: compareResident?.id ?? "",
+                    onChange: e => {
+                      const val = e.target.value;
+                      if (!val) { setCompareResident(null); setSwapHighlightDates([]); return; }
+                      setCompareResident(residents?.find(r => r.id === Number(val)) || null);
+                      setSwapHighlightDates([]);
+                    }
+                  },
+                    h("option", { value: "" }, "— None —"),
+                    (residents || []).filter(r => r.id !== selected?.id).map(r => h("option", { key: r.id, value: r.id }, `${r.name} (${r.level})`))
+                  )
+                )
+              ),
               h("div", { className: "calendars-row" },
                 h("div", { className: "calendar-wrapper" },
                   h("div", { className: "calendar-owner-label" }, selected?.name || "Your schedule"),
-                  h(Calendar, { year, month, assignments, selectedDate, onSelectDate: handleDateSelect, onPrev: prevMonth, onNext: nextMonth, readOnly: false, highlightDates: [] })
+                  h(Calendar, { year, month, assignments, selectedDate, onSelectDate: handleDateSelect, onPrev: prevMonth, onNext: nextMonth, readOnly: false, highlightDates: [], collapsed: calCollapsed, onToggleCollapse: () => setCalCollapsed(c => !c) })
                 ),
                 compareResident && h("div", { className: "calendar-wrapper" },
                   h("div", { className: "calendar-owner-label compare-label" }, compareResident.name),
-                  h(Calendar, { year, month, assignments: compareAssignments, selectedDate: null, onSelectDate: () => {}, onPrev: prevMonth, onNext: nextMonth, readOnly: true, highlightDates: swapHighlightDates })
+                  h(Calendar, { year, month, assignments: compareAssignments, selectedDate: null, onSelectDate: () => {}, onPrev: prevMonth, onNext: nextMonth, readOnly: true, highlightDates: swapHighlightDates, collapsed: compareCollapsed, onToggleCollapse: () => setCompareCollapsed(c => !c) })
                 )
               ),
               h("div", { className: "results-area" },
@@ -535,6 +818,7 @@ function App() {
     )
   );
 }
+
 
 ReactDOM.createRoot(document.getElementById("root")).render(h(App, null));
 </script>

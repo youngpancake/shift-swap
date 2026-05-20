@@ -38,6 +38,18 @@ class ShiftAssignmentRow(Base):
     )
 
 
+class MarketplaceRequestRow(Base):
+    __tablename__ = "marketplace_requests"
+
+    id            = Column(Integer, primary_key=True, index=True)
+    resident_id   = Column(Integer, nullable=False)
+    requested_date = Column(Date, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("resident_id", "requested_date", name="uq_mp_resident_date"),
+    )
+
+
 def get_db():
     db = SessionLocal()
     try:
