@@ -1,3 +1,5 @@
-playwright>=1.44.0
+# Used locally only — the GitHub Actions workflow uses the Playwright Docker
+# image which has playwright + chromium pre-installed.
+playwright>=1.49.0
 requests>=2.31.0
 openpyxl>=3.1.0

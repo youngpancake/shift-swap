@@ -8,23 +8,18 @@ on:
 
 jobs:
   sync:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
+    # Official Playwright image — Chromium already installed, no dep issues
+    container:
+      image: mcr.microsoft.com/playwright/python:v1.49.0-jammy
     timeout-minutes: 15
 
     steps:
       - name: Check out repo
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install dependencies
-        run: |
-          pip install -r sync/requirements.txt
-          playwright install chromium
-          playwright install-deps chromium
+      - name: Install Python dependencies
+        run: pip install requests>=2.31.0 openpyxl>=3.1.0
 
       - name: Run sync
         env:
