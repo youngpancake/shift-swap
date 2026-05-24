@@ -208,7 +208,7 @@ const api = {
   getResidents: () => fetch("/residents").then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(e.detail))),
   getSchedule: (id, start, end) => fetch(`/residents/${id}/schedule?start_date=${start}&end_date=${end}`).then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(e.detail))),
   getSwapOptions: (id, date) => fetch("/swap-options", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({resident_id: id, request_date: date}) }).then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(e.detail))),
-  uploadCSV: (file) => { const fd = new FormData(); fd.append("file", file); return fetch("/upload-csv", {method:"POST", body:fd}).then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(e.detail))); },
+  uploadCSV: (file) => { const fd = new FormData(); fd.append("file", file); return fetch("/upload-schedule", {method:"POST", body:fd}).then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(e.detail))); },
   uploadRequests: (file) => { const fd = new FormData(); fd.append("file", file); return fetch("/marketplace/requests", {method:"POST", body:fd}).then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(e.detail))); },
   getRequests: () => fetch("/marketplace/requests").then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(e.detail))),
   clearRequests: () => fetch("/marketplace/requests", {method:"DELETE"}).then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(e.detail))),
@@ -278,7 +278,7 @@ function UploadPanel({ onUploaded }) {
       onDrop: e => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f); },
       onClick: () => inputRef.current?.click(),
     },
-      h("input", { ref: inputRef, type: "file", accept: ".csv", style: {display:"none"}, onChange: e => { const f = e.target.files?.[0]; if (f) handleFile(f); } }),
+      h("input", { ref: inputRef, type: "file", accept: ".csv,.xlsx,.xls", style: {display:"none"}, onChange: e => { const f = e.target.files?.[0]; if (f) handleFile(f); } }),
       loading ? h("span", { className: "spinner" }) : h("span", { className: "drop-icon" }, "⬆"),
       loading ? null : h("span", null, "Drop CSV here or click to browse")
     ),
@@ -718,7 +718,7 @@ function App() {
           type: "file", accept: ".csv", style: {display:"none"},
           onChange: async e => {
             const f = e.target.files?.[0]; if (!f) return;
-            try { await api.uploadCSV(f); await loadResidents(); } catch {}
+            try { await api.uploadCSV(f); await loadResidents(); } catch(err) { alert(err || "Upload failed"); }
             e.target.value = "";
           }
         })

@@ -17,7 +17,7 @@ from models import (
     Resident, ShiftAssignment, ShiftType, SeniorityLevel,
     SwapRequest, SwapResponse, MarketplaceResult,
 )
-from qgenda import parse_csv, get_api_client
+from qgenda import parse_csv, parse_schedule_file, get_api_client
 from shift_parser import infer_resident_level
 from swap_engine import find_swap_options
 from marketplace import find_swap_cycles
@@ -186,9 +186,23 @@ def _upsert_rows(parsed_rows: list[dict], db: Session) -> dict:
 # Routes
 # ---------------------------------------------------------------------------
 
+@app.post("/upload-schedule")
+async def upload_schedule(file: UploadFile = File(...), db: Session = Depends(get_db)):
+    """Upload a QGenda schedule export — accepts both Excel (.xlsx) and CSV."""
+    content = await file.read()
+    filename = file.filename or ""
+    try:
+        rows = parse_schedule_file(content, filename)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    if not rows:
+        raise HTTPException(status_code=422, detail="No valid rows found in schedule file.")
+    return _upsert_rows(rows, db)
+
+
 @app.post("/upload-csv")
 async def upload_csv(file: UploadFile = File(...), db: Session = Depends(get_db)):
-    """Upload a QGenda CSV schedule export."""
+    """Upload a QGenda CSV schedule export. (Legacy — prefer /upload-schedule)"""
     content = await file.read()
     try:
         rows = parse_csv(content)

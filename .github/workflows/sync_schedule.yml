@@ -2,10 +2,9 @@ name: Sync QGenda Schedule
 
 on:
   schedule:
-    # Runs every Monday at 7:00 AM UTC (midnight Pacific / 3 AM Eastern)
-    # Change this to suit your schedule: https://crontab.guru
+    # Every Monday at 7:00 AM UTC (midnight Pacific / 3 AM Eastern)
     - cron: "0 7 * * 1"
-  workflow_dispatch:  # Also allows manual trigger from GitHub UI
+  workflow_dispatch:  # Also allows manual trigger from the GitHub UI
 
 jobs:
   sync:
@@ -29,9 +28,7 @@ jobs:
 
       - name: Run sync
         env:
-          QGENDA_EMAIL:     ${{ secrets.QGENDA_EMAIL }}
-          QGENDA_PASSWORD:  ${{ secrets.QGENDA_PASSWORD }}
-          APP_URL:          ${{ secrets.APP_URL }}
-          APP_ACCESS_CODE:  ${{ secrets.APP_ACCESS_CODE }}
-          MONTHS_AHEAD:     "3"
+          QGENDA_PUBLIC_URL: ${{ secrets.QGENDA_PUBLIC_URL }}
+          APP_URL:           ${{ secrets.APP_URL }}
+          APP_ACCESS_CODE:   ${{ secrets.APP_ACCESS_CODE }}
         run: python sync/sync_schedule.py

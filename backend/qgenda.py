@@ -1,12 +1,16 @@
 from __future__ import annotations
 """
-QGenda integration — two modes:
+QGenda integration — three modes:
 
-1. CSV upload  (works today, no credentials needed)
+1. Excel upload  (recommended — public link, no credentials needed)
+   QGenda public link → Reports → Calendar by Staff → Excel
+   Handled by parse_excel() / the /upload-schedule endpoint.
+
+2. CSV upload  (also works)
    QGenda → Reports → Schedule Export → download CSV
-   Handles QGenda's calendar-grid format (the default export).
+   Handled by parse_csv() / the /upload-schedule endpoint.
 
-2. API sync  (requires QGenda API credentials from your admin)
+3. API sync  (requires QGenda API credentials from your admin)
    Set QGENDA_EMAIL, QGENDA_PASSWORD, QGENDA_COMPANY_KEY
    in the environment or a .env file, then use /sync-qgenda.
 """
@@ -199,7 +203,7 @@ def _parse_tabular(content: str) -> list[dict]:
 
 def parse_csv(content: str | bytes) -> list[dict]:
     """
-    Auto-detect format and parse.
+    Auto-detect CSV format and parse.
     Tries calendar-grid first (QGenda default), falls back to tabular.
     """
     if isinstance(content, bytes):
@@ -220,6 +224,60 @@ def parse_csv(content: str | bytes) -> list[dict]:
         return _parse_tabular(text)
     except Exception as e:
         raise ValueError(f"Could not parse CSV: {e}")
+
+
+def parse_excel(content: bytes) -> list[dict]:
+    """
+    Parse QGenda's Calendar by Staff Excel export (.xlsx).
+
+    The Excel layout mirrors the CSV calendar-grid format:
+      Row 1:  Sunday  Monday  Tuesday … Saturday
+      Row 2:  June 28 2026  …  (dates in every other column)
+      Row N+: Name  Shift  Name  Shift … (14 cols = 7 days × 2)
+
+    Converts sheet rows to CSV text and routes through the existing
+    calendar-grid parser so all the same shift-parsing logic applies.
+    """
+    try:
+        import openpyxl
+    except ImportError:
+        raise ValueError(
+            "openpyxl is required for Excel uploads. "
+            "Add 'openpyxl>=3.1.0' to requirements.txt."
+        )
+    from io import BytesIO, StringIO as _StringIO
+
+    wb = openpyxl.load_workbook(BytesIO(content), data_only=True)
+    ws = wb.active
+
+    # Convert worksheet rows to a CSV string
+    csv_buf = _StringIO()
+    writer = csv.writer(csv_buf)
+    for row in ws.iter_rows(values_only=True):
+        writer.writerow(["" if v is None else str(v).strip() for v in row])
+
+    csv_text = csv_buf.getvalue()
+
+    # Try calendar-grid format first (the standard Calendar by Staff layout)
+    sample = csv_text.split("\n")[:10]
+    if any(_DAY_HEADER_RE.match(r.split(",")[0].strip()) for r in sample):
+        return parse_qgenda_calendar(csv_text)
+
+    # Fall back to tabular if it's a different sheet layout
+    try:
+        return _parse_tabular(csv_text)
+    except Exception as e:
+        raise ValueError(f"Could not parse Excel schedule: {e}")
+
+
+def parse_schedule_file(content: bytes, filename: str) -> list[dict]:
+    """
+    Unified entry point: auto-routes to Excel or CSV parser based on filename.
+    """
+    name_lower = filename.lower()
+    if name_lower.endswith((".xlsx", ".xls", ".xlsm")):
+        return parse_excel(content)
+    return parse_csv(content)
 
 
 # ---------------------------------------------------------------------------
