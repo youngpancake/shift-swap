@@ -14,10 +14,6 @@ from models import (
 )
 from rules import validate_schedule_change, can_cover
 
-# Only clinical ED shifts can be swapped. Non-clinical entries (Vacation,
-# ICU rotations, Jeopardy, etc.) are stored so they mark a resident as busy,
-# but they can't be offered as swap targets.
-# kept for waterfall rule checks; actual swappability uses shift.is_swappable
 _CLINICAL_TYPES = {ShiftType.DAY, ShiftType.SWING, ShiftType.NIGHT}
 
 
@@ -39,14 +35,19 @@ def find_swap_options(
     mutual: list[SwapOption] = []
     one_sided: list[SwapOption] = []
 
-    # Requester's schedule after handing off request_date
-    requester_minus = {d: s for d, s in requester_schedule.items() if d != request_date}
+    # Check whether the requester giving away request_date (with nothing in return)
+    # is itself valid — needed for the min-2 EM shifts / consecutive rules.
+    requester_giveaway_ok = not validate_schedule_change(
+        requester_schedule,
+        add=[],
+        remove=[request_date],
+    )
 
     for coverer in all_residents:
         if coverer.id == requester.id:
             continue
 
-        # --- Seniority gate ---
+        # --- Seniority / area gate ---
         if not can_cover(request_shift.seniority, coverer.level, request_shift.shift_area):
             continue
 
@@ -57,12 +58,11 @@ def find_swap_options(
             continue
 
         # Validate coverer picking up request_date
-        coverer_violations = validate_schedule_change(
+        if validate_schedule_change(
             coverer_schedule,
             add=[(request_date, request_shift)],
             remove=[],
-        )
-        if coverer_violations:
+        ):
             continue
 
         # --- Look for mutual swap days ---
@@ -72,30 +72,29 @@ def find_swap_options(
             if not coverer_shift.is_swappable:
                 continue
 
-            # Requester must be free that day (after giving up request_date)
-            if coverer_date in requester_minus:
+            # Requester must be free that day
+            if coverer_date in requester_schedule and coverer_date != request_date:
                 continue
 
-            # Seniority gate for the reverse direction
+            # Seniority / area gate for the reverse direction
             if not can_cover(coverer_shift.seniority, requester.level, coverer_shift.shift_area):
                 continue
 
-            # Validate requester picking up coverer_date
-            req_violations = validate_schedule_change(
-                requester_minus,
+            # Validate requester's full exchange: remove request_date, add coverer_date.
+            # Passing both in add/remove ensures every affected week is rule-checked.
+            if validate_schedule_change(
+                requester_schedule,
                 add=[(coverer_date, coverer_shift)],
-                remove=[],
-            )
-            if req_violations:
+                remove=[request_date],
+            ):
                 continue
 
-            # Also re-validate coverer's side with the mutual removal
-            cov_mutual_violations = validate_schedule_change(
+            # Re-validate coverer's side with the mutual removal
+            if validate_schedule_change(
                 coverer_schedule,
                 add=[(request_date, request_shift)],
                 remove=[coverer_date],
-            )
-            if cov_mutual_violations:
+            ):
                 continue
 
             mutual.append(
@@ -116,7 +115,7 @@ def find_swap_options(
             )
             found_mutual = True
 
-        if not found_mutual:
+        if not found_mutual and requester_giveaway_ok:
             one_sided.append(
                 SwapOption(
                     type=SwapOptionType.ONE_SIDED,

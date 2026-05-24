@@ -6,6 +6,7 @@ QGenda shift names look like:
   "Adult ED Green Day Senior 7:30a-6p"
   "Adult ED Peds Night Junior 11:50p-9a"
   "Fast Track Swing Junior 1p-10p"
+  "Fast Track Senior Day 7a-3p"   ← R4-only shift
   "Triage Day 7a-3p"
   "Jeopardy"
   "Vacation"
@@ -22,8 +23,15 @@ _SWING_RE = re.compile(r'\b(swing|eve|evening|pm|mid|afternoon)\b', re.IGNORECAS
 _NIGHT_RE = re.compile(r'\b(night|nights|noc|nocs|overnight|graveyard)\b', re.IGNORECASE)
 
 # ---- Seniority ----
+_R4_RE = re.compile(r'\bR4\b', re.IGNORECASE)
 _SR_RE = re.compile(r'\b(sr|senior|snr)\b', re.IGNORECASE)
 _JR_RE = re.compile(r'\b(jr|junior)\b', re.IGNORECASE)
+
+# Fast Track Senior: either "Fast Track ... Senior" or "Senior ... Fast Track"
+_FT_SENIOR_RE = re.compile(
+    r'(fast.?track.+\b(sr|senior|snr)\b|\b(sr|senior|snr)\b.+fast.?track)',
+    re.IGNORECASE,
+)
 
 # ---- Shift area (location/track within the ED) ----
 _AREA_PATTERNS: list[tuple[re.Pattern, str]] = [
@@ -57,7 +65,9 @@ def parse_shift_name(name: str) -> tuple[ShiftType, SeniorityLevel]:
         shift_type = ShiftType.DAY
 
     seniority = SeniorityLevel.UNKNOWN
-    if _SR_RE.search(name):
+    if _R4_RE.search(name):
+        seniority = SeniorityLevel.R4
+    elif _SR_RE.search(name):
         seniority = SeniorityLevel.SR
     elif _JR_RE.search(name):
         seniority = SeniorityLevel.JR
@@ -85,9 +95,19 @@ def is_shift_swappable(name: str, shift_type: ShiftType) -> bool:
 
 
 def infer_resident_level(shift_names: list[str]) -> SeniorityLevel:
-    """Infer Sr/Jr from the majority of a resident's shift names."""
-    sr_count = sum(1 for n in shift_names if _SR_RE.search(n))
-    jr_count = sum(1 for n in shift_names if _JR_RE.search(n))
+    """
+    Infer R4/Sr/Jr from a resident's shift history.
+    - Any explicit 'R4' label → R4
+    - Works FT Senior shifts → R4 (only R4s staff those)
+    - Otherwise majority Sr/Jr wins
+    """
+    r4_count    = sum(1 for n in shift_names if _R4_RE.search(n))
+    ft_sr_count = sum(1 for n in shift_names if _FT_SENIOR_RE.search(n))
+    sr_count    = sum(1 for n in shift_names if _SR_RE.search(n))
+    jr_count    = sum(1 for n in shift_names if _JR_RE.search(n))
+
+    if r4_count > 0 or ft_sr_count > 0:
+        return SeniorityLevel.R4
     if sr_count > jr_count:
         return SeniorityLevel.SR
     if jr_count > sr_count:

@@ -2,19 +2,43 @@ from __future__ import annotations
 """
 Swap rules engine.
 
-All five rules are validated by validate_schedule_change(), which takes a
-resident's current schedule plus a set of dates to add/remove and returns
-a list of human-readable violation strings (empty = valid).
+Rules validated by validate_schedule_change():
+  1. Min 1 EM-free day per Sun–Sat week  (non-EM shifts count as "off")
+  2. Max 6 consecutive EM shifts          (non-EM days reset the run counter)
+  3. Min 2 effective EM shifts per week   (orientation counts as 1; retreat week exempt)
+  4. Shift waterfall Day→Swing→Night      (EM shifts only; non-EM days don't break waterfall)
+
+can_cover() enforces seniority gating including the R4-only FT Senior rule.
 """
 
 from datetime import date, timedelta
 from models import ShiftAssignment, ShiftType, SeniorityLevel, SHIFT_ORDER
 
+# EM shift types — non-EM shifts (ICU, Vacation, etc.) are transparent for rules 1-3
+_EM_TYPES = {ShiftType.DAY, ShiftType.SWING, ShiftType.NIGHT}
+
+# Retreat / off-service exemption dates (month, day) — min-2 rule does not apply
+# to any Sun–Sat week that contains one of these dates.
+_RETREAT_MD: set[tuple[int, int]] = {(9, 14), (9, 15)}
+
 
 def _week_sunday(d: date) -> date:
     """Return the Sunday that starts the Sun–Sat week containing d."""
-    # weekday(): Mon=0 … Sun=6  →  offset to preceding Sunday
     return d - timedelta(days=(d.weekday() + 1) % 7)
+
+
+def _is_em(shift: ShiftAssignment) -> bool:
+    return shift.shift_type in _EM_TYPES
+
+
+def _is_orientation(shift: ShiftAssignment) -> bool:
+    return shift.shift_name.lower().startswith("orientation")
+
+
+def _is_retreat_week(sunday: date) -> bool:
+    """True if this Sun–Sat week contains any retreat/off-service exempt date."""
+    return any((sunday + timedelta(i)).month == m and (sunday + timedelta(i)).day == d
+               for i in range(7) for m, d in _RETREAT_MD)
 
 
 def validate_schedule_change(
@@ -24,11 +48,7 @@ def validate_schedule_change(
 ) -> list[str]:
     """
     Simulate adding/removing shifts and return all rule violations.
-
-    Rules checked:
-      1. Minimum 1 day off per calendar week (Sun–Sat)
-      2. Maximum 6 consecutive working days
-      3. Shift waterfall: within a consecutive run, Day→Swing→Night only
+    Pass BOTH sides of a swap in add/remove so every affected week is checked.
     """
     modified: dict[date, ShiftAssignment] = {**current}
     for d in remove:
@@ -36,67 +56,84 @@ def validate_schedule_change(
     for d, shift in add:
         modified[d] = shift
 
-    working: set[date] = set(modified.keys())
+    # EM-only working days (non-EM = transparent for rules 1-3)
+    em_days: set[date] = {d for d, s in modified.items() if _is_em(s)}
+
     violations: list[str] = []
-
-    # Only need to re-check weeks / runs that were actually touched
     touched = {d for d, _ in add} | set(remove)
-
-    # --- Rule 1: Min 1 day off per week ---
     checked_sundays: set[date] = set()
+
     for d in touched:
         sunday = _week_sunday(d)
         if sunday in checked_sundays:
             continue
         checked_sundays.add(sunday)
-        days_on = sum(1 for i in range(7) if (sunday + timedelta(i)) in working)
-        if days_on == 7:
+
+        week_dates = [sunday + timedelta(i) for i in range(7)]
+
+        # ---- Rule 1: Min 1 EM-free day per week ----
+        em_in_week = sum(1 for wd in week_dates if wd in em_days)
+        if em_in_week == 7:
             violations.append(
-                f"No day off in week of {sunday.strftime('%b %d')}–"
-                f"{(sunday + timedelta(6)).strftime('%b %d')}"
+                f"No EM-free day in week of "
+                f"{sunday.strftime('%b %d')}–{(sunday + timedelta(6)).strftime('%b %d')}"
             )
 
-    # --- Rule 2: Max 6 consecutive shifts ---
-    for d, _ in add:
-        if d not in working:
+        # ---- Rule 3: Min 2 effective EM shifts per week ----
+        orientation_in_week = sum(
+            1 for wd in week_dates
+            if wd in modified and _is_orientation(modified[wd])
+        )
+        effective = em_in_week + min(orientation_in_week, 1)
+        # Only applies if there are any EM/orientation obligations this week
+        if em_in_week > 0 and effective < 2 and not _is_retreat_week(sunday):
+            violations.append(
+                f"Fewer than 2 EM shifts in week of "
+                f"{sunday.strftime('%b %d')}–{(sunday + timedelta(6)).strftime('%b %d')} "
+                f"({effective} scheduled)"
+            )
+
+    # ---- Rule 2: Max 6 consecutive EM shifts ----
+    for d, shift in add:
+        if not _is_em(shift) or d not in em_days:
             continue
         run_start = d
-        while (run_start - timedelta(1)) in working:
+        while (run_start - timedelta(1)) in em_days:
             run_start -= timedelta(1)
         run_end = d
-        while (run_end + timedelta(1)) in working:
+        while (run_end + timedelta(1)) in em_days:
             run_end += timedelta(1)
         run_len = (run_end - run_start).days + 1
         if run_len > 6:
             violations.append(
-                f"Would create {run_len} consecutive shifts "
+                f"Would create {run_len} consecutive EM shifts "
                 f"({run_start.strftime('%b %d')}–{run_end.strftime('%b %d')})"
             )
 
-    # --- Rule 3: Shift waterfall (forward only within consecutive runs) ---
+    # ---- Rule 4: Shift waterfall (Day→Swing→Night, EM only) ----
     for d, shift in add:
         if shift.shift_type == ShiftType.UNKNOWN:
             continue
         new_order = SHIFT_ORDER[shift.shift_type]
 
         prev = d - timedelta(1)
-        if prev in modified and modified[prev].shift_type != ShiftType.UNKNOWN:
+        if prev in modified and _is_em(modified[prev]):
             prev_order = SHIFT_ORDER[modified[prev].shift_type]
             if prev_order > new_order:
                 violations.append(
                     f"Waterfall violation on {d.strftime('%b %d')}: "
                     f"{modified[prev].shift_type.value} → {shift.shift_type.value} "
-                    f"(rotation must go Day→Swing→Night, not backward)"
+                    f"(must go Day→Swing→Night, not backward)"
                 )
 
         nxt = d + timedelta(1)
-        if nxt in modified and modified[nxt].shift_type != ShiftType.UNKNOWN:
+        if nxt in modified and _is_em(modified[nxt]):
             nxt_order = SHIFT_ORDER[modified[nxt].shift_type]
             if new_order > nxt_order:
                 violations.append(
                     f"Waterfall violation on {d.strftime('%b %d')}: "
                     f"{shift.shift_type.value} → {modified[nxt].shift_type.value} "
-                    f"the next day (rotation must go Day→Swing→Night, not backward)"
+                    f"the next day (must go Day→Swing→Night, not backward)"
                 )
 
     return violations
@@ -108,12 +145,23 @@ def can_cover(
     shift_area: str = "",
 ) -> bool:
     """
-    Sr shift → only Sr can cover.
-    Triage → only Sr can cover (regardless of seniority label on the shift).
-    Jr shift → anyone can cover.
+    Seniority / area gating:
+    - Fast Track Senior → R4 only
+    - Triage            → Sr or R4
+    - R4-labeled shift  → R4 only
+    - Sr-labeled shift  → Sr or R4
+    - Jr / Unknown      → anyone
     """
+    if shift_area == "Fast Track" and shift_seniority in (SeniorityLevel.SR, SeniorityLevel.R4):
+        return coverer_level == SeniorityLevel.R4
+
     if shift_area == "Triage":
-        return coverer_level == SeniorityLevel.SR
+        return coverer_level in (SeniorityLevel.SR, SeniorityLevel.R4)
+
+    if shift_seniority == SeniorityLevel.R4:
+        return coverer_level == SeniorityLevel.R4
+
     if shift_seniority == SeniorityLevel.SR:
-        return coverer_level == SeniorityLevel.SR
+        return coverer_level in (SeniorityLevel.SR, SeniorityLevel.R4)
+
     return True  # Jr or Unknown shift: open to all

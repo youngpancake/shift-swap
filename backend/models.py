@@ -13,8 +13,9 @@ class ShiftType(str, Enum):
 
 
 class SeniorityLevel(str, Enum):
-    SR = "Sr"
-    JR = "Jr"
+    R4 = "R4"   # 4th-year senior; required for FT Senior shifts
+    SR = "Sr"   # 3rd-year senior
+    JR = "Jr"   # 1st/2nd-year junior
     UNKNOWN = "Unknown"
 
 
