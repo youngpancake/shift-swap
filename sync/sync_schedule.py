@@ -38,20 +38,26 @@ if not APP_URL:
 
 
 def academic_year() -> tuple[str, str]:
-    """Return (today, June 30 of the current academic year end) as MM/DD/YYYY.
+    """Return (today, June 30 of the current/upcoming academic year) as MM/DD/YYYY.
 
-    Start is always today so we only pull remaining schedule data.
-    End is June 30 of the next calendar year if we're in Jul–Dec,
-    or June 30 of this calendar year if we're in Jan–Jun.
-
-      Jul–Dec 2026 → today – 06/30/2027
-      Jan–Jun 2027 → today – 06/30/2027
-      Jul–Dec 2027 → today – 06/30/2028
+    Start is always today. End is the June 30 that closes the academic year
+    currently being staffed:
+      - Jul–Dec: the year just started → ends June 30 next calendar year
+      - Jan–Jun: check if this June 30 is coming soon (< 60 days); if so,
+                 residents are already planning the NEXT year → use +1 year
     """
     today = date.today()
-    end_year = today.year + 1 if today.month >= 7 else today.year
     start = today
-    end   = date(end_year, 6, 30)
+    if today.month >= 7:
+        # Mid-year: academic year ends next June 30
+        end = date(today.year + 1, 6, 30)
+    else:
+        this_june_30 = date(today.year, 6, 30)
+        if (this_june_30 - today).days < 60:
+            # Current year ends in < 2 months; use the upcoming year instead
+            end = date(today.year + 1, 6, 30)
+        else:
+            end = this_june_30
     return start.strftime("%m/%d/%Y"), end.strftime("%m/%d/%Y")
 
 
@@ -217,26 +223,27 @@ def download_excel(download_dir: Path) -> Path:
         anon = page.locator(
             'xpath=//input[@type="text" and not(@id) and not(@name) and not(@placeholder)]'
         )
+        def set_date(inp, value):
+            """Fill a React-controlled date input reliably."""
+            inp.click(timeout=5_000)
+            time.sleep(0.2)
+            # fill() clears + types and fires the right synthetic events
+            inp.fill(value, timeout=5_000)
+            # Also fire change + blur so the React component commits the value
+            inp.dispatch_event("change")
+            inp.dispatch_event("blur")
+            time.sleep(0.2)
+            return inp.input_value()
+
         try:
-            start_inp = anon.nth(0)
-            start_inp.click(timeout=5_000)
-            start_inp.press("Control+a")
-            start_inp.press_sequentially(start_date)
-            start_inp.press("Tab")
-            # Verify the value was accepted
-            actual = start_inp.input_value()
-            print(f"  ✓ Start date: {actual}")
+            actual = set_date(anon.nth(0), start_date)
+            print(f"  ✓ Start date set to: {actual}")
         except Exception as e:
             print(f"  WARNING: start date fill failed ({e})")
 
         try:
-            end_inp = anon.nth(1)
-            end_inp.click(timeout=5_000)
-            end_inp.press("Control+a")
-            end_inp.press_sequentially(end_date)
-            end_inp.press("Tab")
-            actual = end_inp.input_value()
-            print(f"  ✓ End date: {actual}")
+            actual = set_date(anon.nth(1), end_date)
+            print(f"  ✓ End date set to: {actual}")
         except Exception as e:
             print(f"  WARNING: end date fill failed ({e})")
 
