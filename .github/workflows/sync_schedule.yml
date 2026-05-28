@@ -27,3 +27,11 @@ jobs:
           APP_URL:           ${{ secrets.APP_URL }}
           APP_ACCESS_CODE:   ${{ secrets.APP_ACCESS_CODE }}
         run: python sync/sync_schedule.py
+
+      - name: Upload debug screenshot on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-screenshot
+          path: /tmp/*/debug.png
+          if-no-files-found: ignore

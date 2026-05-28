@@ -86,25 +86,83 @@ def download_excel(download_dir: Path) -> Path:
 
         # ── 2. Click the Reports button on the left sidebar ───────────────
         print("Opening Reports panel ...")
+
+        # Dump diagnostic info to help identify the correct selector
+        print(f"  Page title: {page.title()}")
+        print(f"  Page URL:   {page.url}")
+
+        # Print all visible buttons and links for debugging
         try:
-            page.click(
-                'button:has-text("Reports"), '
-                'a:has-text("Reports"), '
-                '[aria-label*="Reports" i], '
-                '.reports-btn, #reports-btn',
-                timeout=10_000,
-            )
-        except PWTimeout:
+            buttons = page.locator("button, a, [role='button']").all()
+            texts = []
+            for b in buttons[:40]:
+                try:
+                    t = b.inner_text().strip()
+                    if t:
+                        texts.append(repr(t))
+                except Exception:
+                    pass
+            print(f"  Visible clickables (up to 40): {', '.join(texts)}")
+        except Exception as e:
+            print(f"  Could not enumerate clickables: {e}")
+
+        # Try a broad set of selectors for the Reports button
+        _reports_selectors = [
+            'button:has-text("Reports")',
+            'a:has-text("Reports")',
+            '[aria-label*="Reports" i]',
+            '[title*="Reports" i]',
+            '[data-label*="Reports" i]',
+            '[class*="report" i]',
+            '#reports-btn',
+            '.reports-btn',
+            'li:has-text("Reports")',
+            'span:has-text("Reports")',
+            '[ng-click*="report" i]',
+            '[onclick*="report" i]',
+        ]
+
+        clicked = False
+        for sel in _reports_selectors:
+            try:
+                loc = page.locator(sel).first
+                if loc.count():
+                    print(f"  Found Reports button via: {sel!r}")
+                    loc.click(timeout=5_000)
+                    clicked = True
+                    break
+            except Exception:
+                pass
+
+        if not clicked:
             print("ERROR: Could not find the Reports button.")
-            print("Please inspect the page and update the selector in sync_schedule.py.")
+            print("Please inspect the debug screenshot (uploaded as artifact) and")
+            print("check the 'Visible clickables' log above to find the correct selector.")
             page.screenshot(path=str(download_dir / "debug.png"))
             browser.close()
             sys.exit(1)
+
         page.wait_for_load_state("networkidle")
         time.sleep(1)
 
         # ── 3. Select report type: Calendar by Staff ──────────────────────
         print("Selecting 'Calendar by Staff' ...")
+
+        # Print visible page state after clicking Reports
+        try:
+            buttons2 = page.locator("button, a, [role='button'], option, li").all()
+            texts2 = []
+            for b in buttons2[:50]:
+                try:
+                    t = b.inner_text().strip()
+                    if t:
+                        texts2.append(repr(t))
+                except Exception:
+                    pass
+            print(f"  Post-Reports clickables (up to 50): {', '.join(texts2)}")
+        except Exception as e:
+            print(f"  Could not enumerate post-Reports clickables: {e}")
+
         try:
             # Try a <select> first, then fall back to clicking a list item
             sel = page.locator(
