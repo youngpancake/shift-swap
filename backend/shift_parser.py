@@ -21,25 +21,27 @@ from models import ShiftType, SeniorityLevel
 _DAY_RE   = re.compile(r'\b(day|days|am|morn|morning)\b', re.IGNORECASE)
 _SWING_RE = re.compile(r'\b(swing|eve|evening|pm|mid|afternoon)\b', re.IGNORECASE)
 _NIGHT_RE = re.compile(r'\b(night|nights|noc|nocs|overnight|graveyard)\b', re.IGNORECASE)
+# Fallback: detect PM start time like "1p", "2:30p", "12p" when no keyword present
+_PM_TIME_RE = re.compile(r'\b(?:1[0-2]|[1-9])(?::\d+)?p\b', re.IGNORECASE)
 
 # ---- Seniority ----
 _R4_RE = re.compile(r'\bR4\b', re.IGNORECASE)
 _SR_RE = re.compile(r'\b(sr|senior|snr)\b', re.IGNORECASE)
 _JR_RE = re.compile(r'\b(jr|junior)\b', re.IGNORECASE)
 
-# Fast Track Senior: either "Fast Track ... Senior" or "Senior ... Fast Track"
+# Fast Track Senior: "Fast Track ... Senior", "FT Senior", or reversed
 _FT_SENIOR_RE = re.compile(
-    r'(fast.?track.+\b(sr|senior|snr)\b|\b(sr|senior|snr)\b.+fast.?track)',
+    r'((fast.?track|ft).+\b(sr|senior|snr)\b|\b(sr|senior|snr)\b.+(fast.?track|ft))',
     re.IGNORECASE,
 )
 
 # ---- Shift area (location/track within the ED) ----
 _AREA_PATTERNS: list[tuple[re.Pattern, str]] = [
-    (re.compile(r'\bfast.?track\b', re.IGNORECASE), "Fast Track"),
-    (re.compile(r'\btriage\b',      re.IGNORECASE), "Triage"),
-    (re.compile(r'\bpeds\b',        re.IGNORECASE), "Peds"),
-    (re.compile(r'\bgreen\b',       re.IGNORECASE), "Green"),
-    (re.compile(r'\bpurple\b',      re.IGNORECASE), "Purple"),
+    (re.compile(r'\b(fast.?track|ft)\b', re.IGNORECASE), "Fast Track"),
+    (re.compile(r'\btriage\b',           re.IGNORECASE), "Triage"),
+    (re.compile(r'\bpeds\b',             re.IGNORECASE), "Peds"),
+    (re.compile(r'\bgreen\b',            re.IGNORECASE), "Green"),
+    (re.compile(r'\bpurple\b',           re.IGNORECASE), "Purple"),
 ]
 
 # ---- Non-swappable shift names (exact or prefix match) ----
@@ -63,6 +65,9 @@ def parse_shift_name(name: str) -> tuple[ShiftType, SeniorityLevel]:
         shift_type = ShiftType.SWING
     elif _DAY_RE.search(name):
         shift_type = ShiftType.DAY
+    elif _PM_TIME_RE.search(name):
+        # Fallback for shifts like "FT Junior 1p-10p" that have no type keyword
+        shift_type = ShiftType.SWING
 
     seniority = SeniorityLevel.UNKNOWN
     if _R4_RE.search(name):
