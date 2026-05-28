@@ -65,10 +65,7 @@ def download_excel(download_dir: Path) -> Path:
 
     with sync_playwright() as pw:
         browser = pw.chromium.launch(headless=True)
-        context = browser.new_context(
-            accept_downloads=True,
-            downloads_path=str(download_dir),
-        )
+        context = browser.new_context(accept_downloads=True)
         page = context.new_page()
 
         # ── 1. Open the public schedule page ──────────────────────────────
