@@ -84,90 +84,27 @@ def download_excel(download_dir: Path) -> Path:
         page.goto(QGENDA_PUBLIC_URL, wait_until="networkidle", timeout=45_000)
         time.sleep(1)
 
-        # ── 1b. Dump landing-page state, then click into the schedule view ───
         print(f"  Page title: {page.title()}")
         print(f"  Page URL:   {page.url}")
 
-        # Log everything clickable on the landing page BEFORE we try to navigate
-        try:
-            all_els = page.locator("button, a, [role='button'], [role='link'], h1, h2, h3, li").all()
-            landing_texts = []
-            for el in all_els[:50]:
-                try:
-                    t = el.inner_text().strip()
-                    tag = el.evaluate("e => e.tagName")
-                    if t:
-                        landing_texts.append(f"{tag}:{repr(t)}")
-                except Exception:
-                    pass
-            print(f"  Landing page elements (up to 50): {', '.join(landing_texts)}")
-        except Exception as e:
-            print(f"  Could not enumerate landing page elements: {e}")
-
-        print("Entering schedule view ...")
-        try:
-            # Try any element containing the schedule name or common entry patterns
-            entry_selectors = [
-                ':has-text("Harbor UCLA Residents Schedule")',
-                ':has-text("Residents Schedule")',
-                'a:has-text("Schedule")',
-                '[href*="schedule" i]',
-                '[href*="link" i]',
-            ]
-            entered = False
-            for entry_sel in entry_selectors:
-                try:
-                    loc = page.locator(entry_sel).first
-                    if loc.count():
-                        tag = loc.evaluate("e => e.tagName")
-                        txt = loc.inner_text().strip()
-                        print(f"  Clicking entry element <{tag}>: {repr(txt)} via {entry_sel!r}")
-                        loc.click(timeout=10_000)
-                        page.wait_for_load_state("networkidle", timeout=30_000)
-                        time.sleep(2)
-                        entered = True
-                        break
-                except Exception as e2:
-                    print(f"  Entry selector {entry_sel!r} failed: {e2}")
-            if not entered:
-                print("  No entry link found — assuming already on schedule view")
-        except Exception as e:
-            print(f"  WARNING: landing page navigation failed ({e}), continuing anyway")
-
-        # ── 2. Click the Reports button on the left sidebar ───────────────
+        # ── 2. Click the Reports sidebar item ────────────────────────────
+        # The schedule is already loaded on the landing page.
+        # The sidebar item reads "Reports - Printing and Exporting" and is
+        # NOT a <button>/<a> — it's a <div> or <li>, so we use text= matching.
         print("Opening Reports panel ...")
-        print(f"  Post-entry page title: {page.title()}")
-        print(f"  Post-entry page URL:   {page.url}")
 
-        # Print all visible buttons and links for debugging
-        try:
-            buttons = page.locator("button, a, [role='button']").all()
-            texts = []
-            for b in buttons[:40]:
-                try:
-                    t = b.inner_text().strip()
-                    if t:
-                        texts.append(repr(t))
-                except Exception:
-                    pass
-            print(f"  Visible clickables (up to 40): {', '.join(texts)}")
-        except Exception as e:
-            print(f"  Could not enumerate clickables: {e}")
-
-        # Try a broad set of selectors for the Reports button
         _reports_selectors = [
+            'text=Reports - Printing and Exporting',
+            ':text("Reports - Printing and Exporting")',
+            'text=Reports',
+            'li:has-text("Reports - Printing and Exporting")',
+            'div:has-text("Reports - Printing and Exporting")',
+            'span:has-text("Reports - Printing and Exporting")',
             'button:has-text("Reports")',
             'a:has-text("Reports")',
             '[aria-label*="Reports" i]',
             '[title*="Reports" i]',
-            '[data-label*="Reports" i]',
             '[class*="report" i]',
-            '#reports-btn',
-            '.reports-btn',
-            'li:has-text("Reports")',
-            'span:has-text("Reports")',
-            '[ng-click*="report" i]',
-            '[onclick*="report" i]',
         ]
 
         clicked = False
@@ -175,17 +112,17 @@ def download_excel(download_dir: Path) -> Path:
             try:
                 loc = page.locator(sel).first
                 if loc.count():
-                    print(f"  Found Reports button via: {sel!r}")
+                    tag = loc.evaluate("e => e.tagName")
+                    txt = loc.inner_text().strip()[:60]
+                    print(f"  Clicking <{tag}> {repr(txt)} via {sel!r}")
                     loc.click(timeout=5_000)
                     clicked = True
                     break
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"  Selector {sel!r} failed: {e}")
 
         if not clicked:
             print("ERROR: Could not find the Reports button.")
-            print("Please inspect the debug screenshot (uploaded as artifact) and")
-            print("check the 'Visible clickables' log above to find the correct selector.")
             page.screenshot(path=str(download_dir / "debug.png"))
             browser.close()
             sys.exit(1)
@@ -195,22 +132,6 @@ def download_excel(download_dir: Path) -> Path:
 
         # ── 3. Select report type: Calendar by Staff ──────────────────────
         print("Selecting 'Calendar by Staff' ...")
-
-        # Print visible page state after clicking Reports
-        try:
-            buttons2 = page.locator("button, a, [role='button'], option, li").all()
-            texts2 = []
-            for b in buttons2[:50]:
-                try:
-                    t = b.inner_text().strip()
-                    if t:
-                        texts2.append(repr(t))
-                except Exception:
-                    pass
-            print(f"  Post-Reports clickables (up to 50): {', '.join(texts2)}")
-        except Exception as e:
-            print(f"  Could not enumerate post-Reports clickables: {e}")
-
         try:
             # Try a <select> first, then fall back to clicking a list item
             sel = page.locator(
