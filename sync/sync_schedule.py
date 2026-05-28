@@ -211,7 +211,7 @@ def download_excel(download_dir: Path) -> Path:
         anon = page.locator('input[type="text"][id=""][name=""][placeholder=""]')
         try:
             start_inp = anon.nth(0)
-            start_inp.triple_click()
+            start_inp.click(click_count=3)   # select all existing text
             start_inp.fill(start_date)
             start_inp.press("Tab")
             print(f"  ✓ Start date: {start_date}")
@@ -220,7 +220,7 @@ def download_excel(download_dir: Path) -> Path:
 
         try:
             end_inp = anon.nth(1)
-            end_inp.triple_click()
+            end_inp.click(click_count=3)
             end_inp.fill(end_date)
             end_inp.press("Tab")
             print(f"  ✓ End date: {end_date}")
