@@ -84,6 +84,25 @@ def download_excel(download_dir: Path) -> Path:
         page.goto(QGENDA_PUBLIC_URL, wait_until="networkidle", timeout=45_000)
         time.sleep(1)
 
+        # ── 1b. Click through the landing page into the schedule view ────────
+        print("Entering schedule view ...")
+        try:
+            loc = page.locator(
+                'a:has-text("Schedule"), '
+                'a:has-text("Residents Schedule"), '
+                'a[href*="schedule" i], '
+                'a[href*="link" i]'
+            ).first
+            if loc.count():
+                print(f"  Clicking schedule entry link ...")
+                loc.click(timeout=10_000)
+                page.wait_for_load_state("networkidle", timeout=30_000)
+                time.sleep(2)
+            else:
+                print("  No landing-page link found — assuming already on schedule view")
+        except Exception as e:
+            print(f"  WARNING: landing page navigation failed ({e}), continuing anyway")
+
         # ── 2. Click the Reports button on the left sidebar ───────────────
         print("Opening Reports panel ...")
 
