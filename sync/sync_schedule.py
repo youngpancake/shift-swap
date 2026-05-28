@@ -21,9 +21,20 @@ from pathlib import Path
 import requests
 from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
 
-QGENDA_PUBLIC_URL = os.environ["QGENDA_PUBLIC_URL"]
-APP_URL           = os.environ["APP_URL"].rstrip("/")
-ACCESS_CODE       = os.environ.get("APP_ACCESS_CODE", "")
+QGENDA_PUBLIC_URL = os.environ.get("QGENDA_PUBLIC_URL", "").strip()
+APP_URL           = os.environ.get("APP_URL", "").strip().rstrip("/")
+ACCESS_CODE       = os.environ.get("APP_ACCESS_CODE", "").strip()
+
+# Fail fast with a clear message if required vars are missing
+if not QGENDA_PUBLIC_URL:
+    print("ERROR: QGENDA_PUBLIC_URL secret is not set.")
+    print("Go to GitHub → repo → Settings → Secrets → Actions → New secret")
+    print("Name: QGENDA_PUBLIC_URL")
+    print("Value: https://app.qgenda.com/Link/view?linkKey=...")
+    sys.exit(1)
+if not APP_URL:
+    print("ERROR: APP_URL secret is not set.")
+    sys.exit(1)
 
 
 def academic_year() -> tuple[str, str]:
