@@ -205,24 +205,41 @@ def download_excel(download_dir: Path) -> Path:
         except Exception as e:
             print(f"  Could not enumerate inputs: {e}")
 
-        # Date inputs have no id/name/placeholder — target by position.
-        # After type+format selection they appear as the first two anonymous
-        # text inputs (current values look like "5/1/2026" and "5/31/2026").
-        anon = page.locator('input[type="text"][id=""][name=""][placeholder=""]')
+        # Date inputs have no id/name/placeholder attributes at all (not even "").
+        # CSS [attr=""] only matches explicitly empty attributes; XPath not(@attr)
+        # correctly matches elements where the attribute is absent entirely.
+        anon = page.locator(
+            'xpath=//input[@type="text" and not(@id) and not(@name) and not(@placeholder)]'
+        )
         try:
             start_inp = anon.nth(0)
-            start_inp.click(click_count=3)   # select all existing text
-            start_inp.fill(start_date)
-            start_inp.press("Tab")
+            # Use React-compatible fill: set native value + fire input/change events
+            start_inp.evaluate(
+                """(el, v) => {
+                    const setter = Object.getOwnPropertyDescriptor(
+                        window.HTMLInputElement.prototype, 'value').set;
+                    setter.call(el, v);
+                    el.dispatchEvent(new Event('input',  {bubbles:true}));
+                    el.dispatchEvent(new Event('change', {bubbles:true}));
+                }""",
+                start_date,
+            )
             print(f"  ✓ Start date: {start_date}")
         except Exception as e:
             print(f"  WARNING: start date fill failed ({e})")
 
         try:
             end_inp = anon.nth(1)
-            end_inp.click(click_count=3)
-            end_inp.fill(end_date)
-            end_inp.press("Tab")
+            end_inp.evaluate(
+                """(el, v) => {
+                    const setter = Object.getOwnPropertyDescriptor(
+                        window.HTMLInputElement.prototype, 'value').set;
+                    setter.call(el, v);
+                    el.dispatchEvent(new Event('input',  {bubbles:true}));
+                    el.dispatchEvent(new Event('change', {bubbles:true}));
+                }""",
+                end_date,
+            )
             print(f"  ✓ End date: {end_date}")
         except Exception as e:
             print(f"  WARNING: end date fill failed ({e})")
