@@ -2,8 +2,8 @@ name: Sync QGenda Schedule
 
 on:
   schedule:
-    # Every Monday at 7:00 AM UTC (midnight Pacific / 3 AM Eastern)
-    - cron: "0 7 * * 1"
+    # Every day at 7:00 AM UTC (midnight Pacific / 3 AM Eastern)
+    - cron: "0 7 * * *"
   workflow_dispatch:  # Also allows manual trigger from the GitHub UI
 
 jobs:
