@@ -19,7 +19,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install Python dependencies
-        run: pip install requests>=2.31.0 openpyxl>=3.1.0
+        run: pip install "playwright>=1.49.0" "requests>=2.31.0" "openpyxl>=3.1.0"
 
       - name: Run sync
         env:
