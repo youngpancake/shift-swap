@@ -213,34 +213,24 @@ def download_excel(download_dir: Path) -> Path:
         )
         try:
             start_inp = anon.nth(0)
-            # Use React-compatible fill: set native value + fire input/change events
-            start_inp.evaluate(
-                """(el, v) => {
-                    const setter = Object.getOwnPropertyDescriptor(
-                        window.HTMLInputElement.prototype, 'value').set;
-                    setter.call(el, v);
-                    el.dispatchEvent(new Event('input',  {bubbles:true}));
-                    el.dispatchEvent(new Event('change', {bubbles:true}));
-                }""",
-                start_date,
-            )
-            print(f"  ✓ Start date: {start_date}")
+            start_inp.click(timeout=5_000)
+            start_inp.press("Control+a")
+            start_inp.press_sequentially(start_date)
+            start_inp.press("Tab")
+            # Verify the value was accepted
+            actual = start_inp.input_value()
+            print(f"  ✓ Start date: {actual}")
         except Exception as e:
             print(f"  WARNING: start date fill failed ({e})")
 
         try:
             end_inp = anon.nth(1)
-            end_inp.evaluate(
-                """(el, v) => {
-                    const setter = Object.getOwnPropertyDescriptor(
-                        window.HTMLInputElement.prototype, 'value').set;
-                    setter.call(el, v);
-                    el.dispatchEvent(new Event('input',  {bubbles:true}));
-                    el.dispatchEvent(new Event('change', {bubbles:true}));
-                }""",
-                end_date,
-            )
-            print(f"  ✓ End date: {end_date}")
+            end_inp.click(timeout=5_000)
+            end_inp.press("Control+a")
+            end_inp.press_sequentially(end_date)
+            end_inp.press("Tab")
+            actual = end_inp.input_value()
+            print(f"  ✓ End date: {actual}")
         except Exception as e:
             print(f"  WARNING: end date fill failed ({e})")
 
