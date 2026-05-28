@@ -154,11 +154,12 @@ def download_excel(download_dir: Path) -> Path:
         print("  Screenshot saved.")
 
         # ── 3. Select report type via React Select ────────────────────────
-        # Report Type uses a React Select whose placeholder has id="react-select-5-placeholder"
+        # The dropdown uses class "qgenda-select__input-container" which intercepts
+        # pointer events. Click that container directly (it IS the interactive layer).
         print("Selecting 'Calendar by Staff' ...")
         try:
-            # Click the placeholder/input to open the dropdown
-            page.locator('#react-select-5-placeholder, #react-select-5-input').first.click(timeout=5_000)
+            # Walk up from the known input id to its parent input-container div
+            page.locator('#react-select-5-input').locator('xpath=..').click(timeout=5_000)
             time.sleep(0.5)
             page.get_by_role('option', name='Calendar by Staff').click(timeout=8_000)
             print("  ✓ Report type set")
@@ -171,10 +172,9 @@ def download_excel(download_dir: Path) -> Path:
         time.sleep(1)
 
         # ── 4. Select format via React Select ────────────────────────────
-        # Format uses react-select-6; it becomes enabled after report type is set
         print("Selecting Excel format ...")
         try:
-            page.locator('#react-select-6-placeholder, #react-select-6-input').first.click(timeout=5_000)
+            page.locator('#react-select-6-input').locator('xpath=..').click(timeout=5_000)
             time.sleep(0.5)
             page.get_by_role('option', name='Excel').click(timeout=8_000)
             print("  ✓ Format set to Excel")
