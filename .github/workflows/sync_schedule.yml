@@ -28,8 +28,8 @@ jobs:
           APP_ACCESS_CODE:   ${{ secrets.APP_ACCESS_CODE }}
         run: python sync/sync_schedule.py
 
-      - name: Upload debug screenshot on failure
-        if: failure()
+      - name: Upload debug screenshot
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: debug-screenshot

@@ -127,8 +127,31 @@ def download_excel(download_dir: Path) -> Path:
             browser.close()
             sys.exit(1)
 
-        page.wait_for_load_state("networkidle")
-        time.sleep(1)
+        time.sleep(2)  # wait for Reports panel to animate open
+
+        # ── Dump everything visible in the Reports panel ──────────────────
+        try:
+            all_text = page.locator("select, input, button, a, option, li, div, label, span").all()
+            panel_items = []
+            for el in all_text[:80]:
+                try:
+                    t = el.inner_text().strip()
+                    tag = el.evaluate("e => e.tagName")
+                    typ = ""
+                    try:
+                        typ = el.get_attribute("type") or el.get_attribute("name") or el.get_attribute("id") or ""
+                    except Exception:
+                        pass
+                    if t and len(t) < 80:
+                        panel_items.append(f"{tag}[{typ}]:{repr(t)}")
+                except Exception:
+                    pass
+            print(f"  Reports panel elements: {', '.join(panel_items[:60])}")
+        except Exception as e:
+            print(f"  Could not enumerate panel elements: {e}")
+
+        page.screenshot(path=str(download_dir / "debug.png"))
+        print("  Screenshot saved.")
 
         # ── 3. Select report type: Calendar by Staff ──────────────────────
         print("Selecting 'Calendar by Staff' ...")
@@ -141,7 +164,7 @@ def download_excel(download_dir: Path) -> Path:
             if sel.count():
                 sel.select_option(label="Calendar by Staff")
             else:
-                page.click(':has-text("Calendar by Staff")', timeout=5_000)
+                page.click('text=Calendar by Staff', timeout=5_000)
         except Exception as e:
             print(f"  WARNING: report-type selector failed ({e}), continuing anyway")
 
@@ -157,7 +180,7 @@ def download_excel(download_dir: Path) -> Path:
             if fmt.count():
                 fmt.select_option(label="Excel")
             else:
-                page.click(':has-text("Excel")', timeout=5_000)
+                page.click('text=Excel', timeout=5_000)
         except Exception as e:
             print(f"  WARNING: format selector failed ({e}), continuing anyway")
 
@@ -165,12 +188,28 @@ def download_excel(download_dir: Path) -> Path:
 
         # ── 5. Set date range ─────────────────────────────────────────────
         print(f"Setting dates {start_date} → {end_date} ...")
-        _fill_date(page, "start",  start_date)
-        _fill_date(page, "from",   start_date)
-        _fill_date(page, "begin",  start_date)
-        _fill_date(page, "end",    end_date)
-        _fill_date(page, "to",     end_date)
-        _fill_date(page, "finish", end_date)
+        # Also try the label text itself as a hint for nearby inputs
+        for hint in ("start", "from", "begin", "Start", "From", "Begin"):
+            _fill_date(page, hint, start_date)
+        for hint in ("end", "to", "finish", "End", "To", "Finish"):
+            _fill_date(page, hint, end_date)
+
+        # Dump all inputs to help diagnose if dates still fail
+        try:
+            inputs = page.locator("input").all()
+            input_info = []
+            for inp in inputs[:20]:
+                try:
+                    attrs = inp.evaluate(
+                        "e => ({type:e.type, name:e.name, id:e.id, placeholder:e.placeholder, value:e.value})"
+                    )
+                    input_info.append(str(attrs))
+                except Exception:
+                    pass
+            print(f"  All inputs: {input_info}")
+        except Exception as e:
+            print(f"  Could not enumerate inputs: {e}")
+
         time.sleep(0.5)
 
         # ── 6. Download ───────────────────────────────────────────────────
@@ -183,7 +222,8 @@ def download_excel(download_dir: Path) -> Path:
                     'button:has-text("Run"), '
                     'button:has-text("Export"), '
                     'a:has-text("Download"), '
-                    'a:has-text("Export")',
+                    'a:has-text("Export"), '
+                    'text=Download, text=Generate, text=Run Report, text=Export',
                     timeout=10_000,
                 )
             download = dl_info.value
