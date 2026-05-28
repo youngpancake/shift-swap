@@ -1,7 +1,7 @@
 from __future__ import annotations
 import os
 import secrets
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Optional
 
@@ -74,6 +74,36 @@ def _row_to_resident(row: ResidentRow) -> Resident:
     return Resident(id=row.id, name=row.name, level=SeniorityLevel(row.level))
 
 
+def _empty_week_dates(shifts: dict[date, ShiftAssignment]) -> set[date]:
+    """
+    Return every date that falls inside a completely empty Mon–Sun week,
+    bounded by the resident's first and last scheduled shift date.
+
+    A week is "empty" if none of its 7 days has any shift in the database.
+    This lets us infer ICU / vacation / off-service blocks that the public
+    QGenda link omits.
+    """
+    if not shifts:
+        return set()
+
+    first = min(shifts)
+    last  = max(shifts)
+
+    # Walk week by week (Monday = weekday 0)
+    monday = first - timedelta(days=first.weekday())
+    blocked: set[date] = set()
+    while monday <= last:
+        week_days = [monday + timedelta(days=i) for i in range(7)]
+        if not any(d in shifts for d in week_days):
+            # Entire week is empty — block the days within the schedule span
+            for d in week_days:
+                if first <= d <= last:
+                    blocked.add(d)
+        monday += timedelta(days=7)
+
+    return blocked
+
+
 def _load_schedule(
     resident_ids: list[int], db: Session
 ) -> dict[int, dict[date, ShiftAssignment]]:
@@ -92,6 +122,22 @@ def _load_schedule(
             shift_area=r.shift_area or "",
             is_swappable=bool(r.is_swappable),
         )
+
+    # Inject synthetic "Off-Service" entries for every day that falls inside a
+    # completely empty Mon–Sun week.  This handles ICU / vacation / off-service
+    # rotations that don't appear on the public QGenda link.
+    for rid, schedule in schedules.items():
+        for d in _empty_week_dates(schedule):
+            if d not in schedule:
+                schedule[d] = ShiftAssignment(
+                    work_date=d,
+                    shift_name="Off-Service",
+                    shift_type=ShiftType.UNKNOWN,
+                    seniority=SeniorityLevel.UNKNOWN,
+                    shift_area="",
+                    is_swappable=False,
+                )
+
     return schedules
 
 
@@ -245,6 +291,82 @@ def list_residents(db: Session = Depends(get_db)):
     return [_row_to_resident(r) for r in rows]
 
 
+@app.patch("/residents/{resident_id}")
+def rename_resident(
+    resident_id: int,
+    body: dict,
+    db: Session = Depends(get_db),
+):
+    """Rename a resident. Body: {"name": "New Name"}"""
+    new_name = (body.get("name") or "").strip()
+    if not new_name:
+        raise HTTPException(status_code=422, detail="Name cannot be empty.")
+    row = db.query(ResidentRow).filter(ResidentRow.id == resident_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Resident not found.")
+    conflict = db.query(ResidentRow).filter(ResidentRow.name == new_name).first()
+    if conflict and conflict.id != resident_id:
+        raise HTTPException(status_code=409, detail=f'A resident named "{new_name}" already exists.')
+    row.name = new_name
+    db.commit()
+    return _row_to_resident(row)
+
+
+@app.post("/residents/merge")
+def merge_residents(
+    body: dict,
+    db: Session = Depends(get_db),
+):
+    """
+    Merge a duplicate resident into the canonical one.
+    Body: {"keep_id": <int>, "delete_id": <int>}
+    All shift assignments from delete_id are moved to keep_id
+    (skipping any date where keep_id already has a shift).
+    The duplicate resident row is then deleted.
+    """
+    keep_id   = body.get("keep_id")
+    delete_id = body.get("delete_id")
+    if not keep_id or not delete_id or keep_id == delete_id:
+        raise HTTPException(status_code=422, detail="Provide distinct keep_id and delete_id.")
+
+    keep_row   = db.query(ResidentRow).filter(ResidentRow.id == keep_id).first()
+    delete_row = db.query(ResidentRow).filter(ResidentRow.id == delete_id).first()
+    if not keep_row or not delete_row:
+        raise HTTPException(status_code=404, detail="One or both residents not found.")
+
+    # Dates already covered by the resident we're keeping
+    keep_dates = {
+        r.work_date
+        for r in db.query(ShiftAssignmentRow)
+        .filter(ShiftAssignmentRow.resident_id == keep_id)
+        .all()
+    }
+
+    # Re-assign shifts from duplicate → canonical (skip conflicts)
+    moved = skipped = 0
+    for shift in (
+        db.query(ShiftAssignmentRow)
+        .filter(ShiftAssignmentRow.resident_id == delete_id)
+        .all()
+    ):
+        if shift.work_date in keep_dates:
+            skipped += 1
+        else:
+            shift.resident_id = keep_id
+            moved += 1
+
+    # Delete the duplicate resident (cascade handles any remaining rows)
+    db.delete(delete_row)
+    db.commit()
+
+    return {
+        "kept": keep_row.name,
+        "deleted": delete_row.name,
+        "shifts_moved": moved,
+        "shifts_skipped_conflict": skipped,
+    }
+
+
 @app.get("/residents/{resident_id}/schedule", response_model=list[ShiftAssignment])
 def get_resident_schedule(
     resident_id: int,
@@ -252,24 +374,15 @@ def get_resident_schedule(
     end_date: Optional[date] = Query(None),
     db: Session = Depends(get_db),
 ):
-    q = db.query(ShiftAssignmentRow).filter(
-        ShiftAssignmentRow.resident_id == resident_id
-    )
-    if start_date:
-        q = q.filter(ShiftAssignmentRow.work_date >= start_date)
-    if end_date:
-        q = q.filter(ShiftAssignmentRow.work_date <= end_date)
-    rows = q.order_by(ShiftAssignmentRow.work_date).all()
+    # Load the FULL schedule first (no date filter) so that empty-week
+    # detection is accurate regardless of the requested display window.
+    schedules = _load_schedule([resident_id], db)
+    schedule = schedules.get(resident_id, {})
+
     return [
-        ShiftAssignment(
-            work_date=r.work_date,
-            shift_name=r.shift_name,
-            shift_type=ShiftType(r.shift_type),
-            seniority=SeniorityLevel(r.seniority),
-            shift_area=r.shift_area or "",
-            is_swappable=bool(r.is_swappable),
-        )
-        for r in rows
+        sa for d, sa in sorted(schedule.items())
+        if (start_date is None or d >= start_date)
+        and (end_date is None or d <= end_date)
     ]
 
 
