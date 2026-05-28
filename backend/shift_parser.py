@@ -89,13 +89,24 @@ def parse_shift_area(name: str) -> str:
     return ""
 
 
+_NON_SWAPPABLE_SEARCH_RE = re.compile(
+    r'\b(orientation)\b',
+    re.IGNORECASE,
+)
+
+
 def is_shift_swappable(name: str, shift_type: ShiftType) -> bool:
     """
     A shift is swappable if:
     - It has a recognized time-of-day (Day/Swing/Night), AND
     - It is not explicitly non-swappable (Jeopardy, ICU, Vacation, etc.)
     """
-    if _NON_SWAPPABLE_RE.match(name.strip()):
+    clean = name.strip()
+    if _NON_SWAPPABLE_RE.match(clean):
+        return False
+    # Catch orientation names that don't start with "orientation"
+    # e.g. "New Resident Orientation", "Intern Orientation Day"
+    if _NON_SWAPPABLE_SEARCH_RE.search(clean):
         return False
     return shift_type in (ShiftType.DAY, ShiftType.SWING, ShiftType.NIGHT)
 
