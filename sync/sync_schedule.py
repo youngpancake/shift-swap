@@ -84,31 +84,60 @@ def download_excel(download_dir: Path) -> Path:
         page.goto(QGENDA_PUBLIC_URL, wait_until="networkidle", timeout=45_000)
         time.sleep(1)
 
-        # ── 1b. Click through the landing page into the schedule view ────────
+        # ── 1b. Dump landing-page state, then click into the schedule view ───
+        print(f"  Page title: {page.title()}")
+        print(f"  Page URL:   {page.url}")
+
+        # Log everything clickable on the landing page BEFORE we try to navigate
+        try:
+            all_els = page.locator("button, a, [role='button'], [role='link'], h1, h2, h3, li").all()
+            landing_texts = []
+            for el in all_els[:50]:
+                try:
+                    t = el.inner_text().strip()
+                    tag = el.evaluate("e => e.tagName")
+                    if t:
+                        landing_texts.append(f"{tag}:{repr(t)}")
+                except Exception:
+                    pass
+            print(f"  Landing page elements (up to 50): {', '.join(landing_texts)}")
+        except Exception as e:
+            print(f"  Could not enumerate landing page elements: {e}")
+
         print("Entering schedule view ...")
         try:
-            loc = page.locator(
-                'a:has-text("Schedule"), '
-                'a:has-text("Residents Schedule"), '
-                'a[href*="schedule" i], '
-                'a[href*="link" i]'
-            ).first
-            if loc.count():
-                print(f"  Clicking schedule entry link ...")
-                loc.click(timeout=10_000)
-                page.wait_for_load_state("networkidle", timeout=30_000)
-                time.sleep(2)
-            else:
-                print("  No landing-page link found — assuming already on schedule view")
+            # Try any element containing the schedule name or common entry patterns
+            entry_selectors = [
+                ':has-text("Harbor UCLA Residents Schedule")',
+                ':has-text("Residents Schedule")',
+                'a:has-text("Schedule")',
+                '[href*="schedule" i]',
+                '[href*="link" i]',
+            ]
+            entered = False
+            for entry_sel in entry_selectors:
+                try:
+                    loc = page.locator(entry_sel).first
+                    if loc.count():
+                        tag = loc.evaluate("e => e.tagName")
+                        txt = loc.inner_text().strip()
+                        print(f"  Clicking entry element <{tag}>: {repr(txt)} via {entry_sel!r}")
+                        loc.click(timeout=10_000)
+                        page.wait_for_load_state("networkidle", timeout=30_000)
+                        time.sleep(2)
+                        entered = True
+                        break
+                except Exception as e2:
+                    print(f"  Entry selector {entry_sel!r} failed: {e2}")
+            if not entered:
+                print("  No entry link found — assuming already on schedule view")
         except Exception as e:
             print(f"  WARNING: landing page navigation failed ({e}), continuing anyway")
 
         # ── 2. Click the Reports button on the left sidebar ───────────────
         print("Opening Reports panel ...")
-
-        # Dump diagnostic info to help identify the correct selector
-        print(f"  Page title: {page.title()}")
-        print(f"  Page URL:   {page.url}")
+        print(f"  Post-entry page title: {page.title()}")
+        print(f"  Post-entry page URL:   {page.url}")
 
         # Print all visible buttons and links for debugging
         try:
