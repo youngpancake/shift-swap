@@ -205,23 +205,38 @@ def download_excel(download_dir: Path) -> Path:
         except Exception as e:
             print(f"  Could not enumerate inputs: {e}")
 
-        for hint in ("start", "from", "begin", "Start", "From", "Begin",
-                     "startDate", "start_date", "StartDate"):
-            _fill_date(page, hint, start_date)
-        for hint in ("end", "to", "finish", "End", "To", "Finish",
-                     "endDate", "end_date", "EndDate"):
-            _fill_date(page, hint, end_date)
+        # Date inputs have no id/name/placeholder — target by position.
+        # After type+format selection they appear as the first two anonymous
+        # text inputs (current values look like "5/1/2026" and "5/31/2026").
+        anon = page.locator('input[type="text"][id=""][name=""][placeholder=""]')
+        try:
+            start_inp = anon.nth(0)
+            start_inp.triple_click()
+            start_inp.fill(start_date)
+            start_inp.press("Tab")
+            print(f"  ✓ Start date: {start_date}")
+        except Exception as e:
+            print(f"  WARNING: start date fill failed ({e})")
+
+        try:
+            end_inp = anon.nth(1)
+            end_inp.triple_click()
+            end_inp.fill(end_date)
+            end_inp.press("Tab")
+            print(f"  ✓ End date: {end_date}")
+        except Exception as e:
+            print(f"  WARNING: end date fill failed ({e})")
+
         time.sleep(0.5)
 
         # ── 6. Click "Run Report" (triggers the file download) ────────────
+        # The button is a styled div, not a <button>, so use text= matching.
         print("Clicking 'Run Report' ...")
-        _dl_error = None
         try:
             with page.expect_download(timeout=90_000) as dl_info:
-                page.get_by_role('button', name='Run Report').click(timeout=10_000)
+                page.locator('text=Run Report').last.click(timeout=10_000)
             download = dl_info.value
         except Exception as e:
-            _dl_error = e
             print(f"ERROR: Run Report failed: {e}")
             try:
                 page.screenshot(path=str(download_dir / "debug.png"))
