@@ -232,7 +232,7 @@ function shiftColor(shift) {
 function badgeClass(type) {
   return type === "Day" ? "badge-day" : type === "Swing" ? "badge-swing" : type === "Night" ? "badge-night" : "badge-unknown";
 }
-const AREA_ABBR = { "Green": "Grn", "Purple": "Prp", "Peds": "Peds", "Fast Track": "FT", "Triage": "Tri" };
+const AREA_ABBR = { "Green": "Grn", "Purple": "Prp", "Peds": "Ped", "Fast Track": "FT", "Triage": "Tri", "RME": "RME" };
 function shiftLabel(shift) {
   if (!shift.is_swappable) return shift.shift_name.split(" ")[0].slice(0, 9);
   const abbr = AREA_ABBR[shift.shift_area] || "";
@@ -449,7 +449,7 @@ function SwapResults({ response, onClose, compareResidentId, onViewCalendar }) {
 // ---- Marketplace ----
 
 function CycleLegRow({ leg }) {
-  const AREA_ABBR = { "Green": "Grn", "Purple": "Prp", "Peds": "Peds", "Fast Track": "FT", "Triage": "Tri" };
+  const AREA_ABBR = { "Green": "Grn", "Purple": "Prp", "Peds": "Ped", "Fast Track": "FT", "Triage": "Tri", "RME": "RME" };
   function label(area, type) { const a = AREA_ABBR[area] || area; return a ? `${a} · ${type}` : type; }
   return h("div", { className: "cycle-leg" },
     h("span", { className: "cycle-leg-name" }, leg.resident.name),

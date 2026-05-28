@@ -39,7 +39,8 @@ _FT_SENIOR_RE = re.compile(
 _AREA_PATTERNS: list[tuple[re.Pattern, str]] = [
     (re.compile(r'\b(fast.?track|ft)\b', re.IGNORECASE), "Fast Track"),
     (re.compile(r'\btriage\b',           re.IGNORECASE), "Triage"),
-    (re.compile(r'\bpeds\b',             re.IGNORECASE), "Peds"),
+    (re.compile(r'\bpeds?\b',            re.IGNORECASE), "Peds"),
+    (re.compile(r'\brme\b',              re.IGNORECASE), "RME"),
     (re.compile(r'\bgreen\b',            re.IGNORECASE), "Green"),
     (re.compile(r'\bpurple\b',           re.IGNORECASE), "Purple"),
 ]
