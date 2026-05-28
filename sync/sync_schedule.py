@@ -47,17 +47,20 @@ def academic_year() -> tuple[str, str]:
                  residents are already planning the NEXT year → use +1 year
     """
     today = date.today()
-    start = today
+    # Start from July 1 of the current academic year so the full year
+    # is always in the database (captures ongoing ICU/vacation blocks etc.)
     if today.month >= 7:
-        # Mid-year: academic year ends next June 30
-        end = date(today.year + 1, 6, 30)
+        start = date(today.year, 7, 1)
+        end   = date(today.year + 1, 6, 30)
     else:
+        # Jan–Jun: check if this June 30 is < 60 days away → upcoming year
         this_june_30 = date(today.year, 6, 30)
         if (this_june_30 - today).days < 60:
-            # Current year ends in < 2 months; use the upcoming year instead
-            end = date(today.year + 1, 6, 30)
+            start = date(today.year, 7, 1)   # upcoming July 1
+            end   = date(today.year + 1, 6, 30)
         else:
-            end = this_june_30
+            start = date(today.year - 1, 7, 1)
+            end   = this_june_30
     return start.strftime("%m/%d/%Y"), end.strftime("%m/%d/%Y")
 
 
