@@ -38,21 +38,20 @@ if not APP_URL:
 
 
 def academic_year() -> tuple[str, str]:
-    """Return (start, end) for the upcoming July–June academic year as MM/DD/YYYY.
+    """Return (today, June 30 of the current academic year end) as MM/DD/YYYY.
 
-    Schedules are typically published by April, so from April onwards we
-    target the year that starts on the next July 1.
+    Start is always today so we only pull remaining schedule data.
+    End is June 30 of the next calendar year if we're in Jul–Dec,
+    or June 30 of this calendar year if we're in Jan–Jun.
 
-      Jan–Mar  → last July 1  through this June 30   (e.g. 2026: 07/01/2025–06/30/2026)
-      Apr–Dec  → this July 1  through next June 30   (e.g. 2026: 07/01/2026–06/30/2027)
+      Jul–Dec 2026 → today – 06/30/2027
+      Jan–Jun 2027 → today – 06/30/2027
+      Jul–Dec 2027 → today – 06/30/2028
     """
     today = date.today()
-    if today.month >= 4:
-        start = date(today.year,     7, 1)
-        end   = date(today.year + 1, 6, 30)
-    else:
-        start = date(today.year - 1, 7, 1)
-        end   = date(today.year,     6, 30)
+    end_year = today.year + 1 if today.month >= 7 else today.year
+    start = today
+    end   = date(end_year, 6, 30)
     return start.strftime("%m/%d/%Y"), end.strftime("%m/%d/%Y")
 
 
