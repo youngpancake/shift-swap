@@ -153,83 +153,80 @@ def download_excel(download_dir: Path) -> Path:
         page.screenshot(path=str(download_dir / "debug.png"))
         print("  Screenshot saved.")
 
-        # ── 3. Select report type: Calendar by Staff ──────────────────────
+        # ── 3. Select report type via React Select ────────────────────────
+        # Report Type uses a React Select whose placeholder has id="react-select-5-placeholder"
         print("Selecting 'Calendar by Staff' ...")
         try:
-            # Try a <select> first, then fall back to clicking a list item
-            sel = page.locator(
-                'select[name*="report" i], select[id*="report" i], '
-                'select[name*="type" i],   select[id*="type" i]'
-            ).first
-            if sel.count():
-                sel.select_option(label="Calendar by Staff")
-            else:
-                page.click('text=Calendar by Staff', timeout=5_000)
+            # Click the placeholder/input to open the dropdown
+            page.locator('#react-select-5-placeholder, #react-select-5-input').first.click(timeout=5_000)
+            time.sleep(0.5)
+            page.get_by_role('option', name='Calendar by Staff').click(timeout=8_000)
+            print("  ✓ Report type set")
         except Exception as e:
-            print(f"  WARNING: report-type selector failed ({e}), continuing anyway")
+            print(f"  ERROR: Report type selection failed: {e}")
+            page.screenshot(path=str(download_dir / "debug.png"))
+            browser.close()
+            sys.exit(1)
 
-        time.sleep(0.5)
+        time.sleep(1)
 
-        # ── 4. Select format: Excel ───────────────────────────────────────
+        # ── 4. Select format via React Select ────────────────────────────
+        # Format uses react-select-6; it becomes enabled after report type is set
         print("Selecting Excel format ...")
         try:
-            fmt = page.locator(
-                'select[name*="format" i], select[id*="format" i], '
-                'select[name*="output" i], select[id*="output" i]'
-            ).first
-            if fmt.count():
-                fmt.select_option(label="Excel")
-            else:
-                page.click('text=Excel', timeout=5_000)
+            page.locator('#react-select-6-placeholder, #react-select-6-input').first.click(timeout=5_000)
+            time.sleep(0.5)
+            page.get_by_role('option', name='Excel').click(timeout=8_000)
+            print("  ✓ Format set to Excel")
         except Exception as e:
-            print(f"  WARNING: format selector failed ({e}), continuing anyway")
+            print(f"  ERROR: Format selection failed: {e}")
+            page.screenshot(path=str(download_dir / "debug.png"))
+            browser.close()
+            sys.exit(1)
 
-        time.sleep(0.5)
+        time.sleep(1)
 
         # ── 5. Set date range ─────────────────────────────────────────────
+        # Date inputs appear after type+format are selected; log them for debugging
         print(f"Setting dates {start_date} → {end_date} ...")
-        # Also try the label text itself as a hint for nearby inputs
-        for hint in ("start", "from", "begin", "Start", "From", "Begin"):
-            _fill_date(page, hint, start_date)
-        for hint in ("end", "to", "finish", "End", "To", "Finish"):
-            _fill_date(page, hint, end_date)
-
-        # Dump all inputs to help diagnose if dates still fail
         try:
             inputs = page.locator("input").all()
             input_info = []
             for inp in inputs[:20]:
                 try:
                     attrs = inp.evaluate(
-                        "e => ({type:e.type, name:e.name, id:e.id, placeholder:e.placeholder, value:e.value})"
+                        "e => ({type:e.type, name:e.name, id:e.id, "
+                        "placeholder:e.placeholder, value:e.value})"
                     )
                     input_info.append(str(attrs))
                 except Exception:
                     pass
-            print(f"  All inputs: {input_info}")
+            print(f"  Inputs after type+format selection: {input_info}")
         except Exception as e:
             print(f"  Could not enumerate inputs: {e}")
 
+        for hint in ("start", "from", "begin", "Start", "From", "Begin",
+                     "startDate", "start_date", "StartDate"):
+            _fill_date(page, hint, start_date)
+        for hint in ("end", "to", "finish", "End", "To", "Finish",
+                     "endDate", "end_date", "EndDate"):
+            _fill_date(page, hint, end_date)
         time.sleep(0.5)
 
-        # ── 6. Download ───────────────────────────────────────────────────
-        print("Clicking download ...")
+        # ── 6. Click "Run Report" (triggers the file download) ────────────
+        print("Clicking 'Run Report' ...")
+        _dl_error = None
         try:
             with page.expect_download(timeout=90_000) as dl_info:
-                page.click(
-                    'button:has-text("Download"), '
-                    'button:has-text("Generate"), '
-                    'button:has-text("Run"), '
-                    'button:has-text("Export"), '
-                    'a:has-text("Download"), '
-                    'a:has-text("Export"), '
-                    'text=Download, text=Generate, text=Run Report, text=Export',
-                    timeout=10_000,
-                )
+                page.get_by_role('button', name='Run Report').click(timeout=10_000)
             download = dl_info.value
-        except PWTimeout:
-            print("ERROR: Download button not found or download timed out.")
-            page.screenshot(path=str(download_dir / "debug.png"))
+        except Exception as e:
+            _dl_error = e
+            print(f"ERROR: Run Report failed: {e}")
+            try:
+                page.screenshot(path=str(download_dir / "debug.png"))
+            except Exception:
+                pass
             browser.close()
             sys.exit(1)
 
