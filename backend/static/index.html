@@ -258,7 +258,7 @@ function UploadPanel({ onUploaded }) {
       h("ol", null,
         h("li", null, "Go to ", h("em", null, "Reports → Schedule Export")),
         h("li", null, "Select your date range and all residents"),
-        h("li", null, "Download as CSV and upload above")
+        h("li", null, "Download as Excel (.xlsx) or CSV and upload above")
       )
     )
   );
@@ -508,10 +508,10 @@ function App() {
         h("span", { className: "app-logo" }, "⇄"),
         "Shift Swap Finder"
       ),
-      h("label", { className: "upload-btn", title: "Upload new QGenda CSV" },
-        "Upload CSV",
+      h("label", { className: "upload-btn", title: "Upload new QGenda schedule (CSV or Excel)" },
+        "Upload Schedule",
         h("input", {
-          type: "file", accept: ".csv", style: {display:"none"},
+          type: "file", accept: ".csv,.xlsx,.xls", style: {display:"none"},
           onChange: async e => {
             const f = e.target.files?.[0]; if (!f) return;
             try { await api.uploadCSV(f); await loadResidents(); } catch(err) { alert(err || "Upload failed"); }
