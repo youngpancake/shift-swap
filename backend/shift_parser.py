@@ -50,7 +50,7 @@ _AREA_PATTERNS: list[tuple[re.Pattern, str]] = [
 _NON_SWAPPABLE_RE = re.compile(
     r'^(jeopardy|icu|selective|elective|vacation|st\.?\s*mary|social|'
     r'lbm|off.?service|ems|base.?training|chief.?on.?call|'
-    r'orientation|closed)',
+    r'orientation|orn|closed)',
     re.IGNORECASE,
 )
 

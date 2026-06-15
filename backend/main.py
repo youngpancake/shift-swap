@@ -424,6 +424,23 @@ def get_swap_options(req: SwapRequest, db: Session = Depends(get_db)):
     )
 
 
+@app.get("/admin/shift-names")
+def list_shift_names(db: Session = Depends(get_db)):
+    """Return every distinct shift name in the DB with its parsed type and swappable flag."""
+    from shift_parser import parse_shift_name, is_shift_swappable
+    rows = db.query(ShiftAssignmentRow.shift_name, ShiftAssignmentRow.shift_type).distinct().all()
+    results = []
+    for shift_name, stored_type in sorted(set(rows)):
+        shift_type, _ = parse_shift_name(shift_name)
+        results.append({
+            "shift_name": shift_name,
+            "stored_type": stored_type,
+            "parsed_type": shift_type.value,
+            "is_swappable": is_shift_swappable(shift_name, shift_type),
+        })
+    return results
+
+
 @app.get("/schedule-summary")
 def schedule_summary(
     start_date: date = Query(...),

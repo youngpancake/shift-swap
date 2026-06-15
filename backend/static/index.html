@@ -217,7 +217,7 @@ function badgeClass(type) {
   return type === "Day" ? "badge-day" : type === "Swing" ? "badge-swing" : type === "Night" ? "badge-night" : "badge-unknown";
 }
 const AREA_ABBR = { "Green": "Grn", "Purple": "Prp", "Peds": "Ped", "Fast Track": "FT", "Triage": "Tri", "RME": "RME" };
-const NON_SWAP_SHORT = { "Jeopardy": "JP", "Vacation": "Vac", "Orientation": "Ori", "ICU": "ICU", "Selective": "Sel", "Elective": "Elec", "Off-Service": "Off", "EMS": "EMS" };
+const NON_SWAP_SHORT = { "Jeopardy": "JP", "Vacation": "Vac", "Orientation": "Ori", "ORN": "Ori", "ICU": "ICU", "Selective": "Sel", "Elective": "Elec", "Off-Service": "Off", "EMS": "EMS" };
 function nonSwapLabel(name) {
   // Try exact match first, then first-word match
   if (NON_SWAP_SHORT[name]) return NON_SWAP_SHORT[name];
