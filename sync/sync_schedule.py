@@ -85,6 +85,19 @@ def _fill_date(page, label_hint: str, value: str) -> None:
     print(f"  WARNING: could not find date field for '{label_hint}'")
 
 
+_SCREENSHOT_PATH = os.environ.get("DEBUG_SCREENSHOT_PATH", "")
+
+
+def _save_screenshot(page, download_dir: Path) -> None:
+    """Save screenshot to download_dir and, if set, to DEBUG_SCREENSHOT_PATH."""
+    local = str(download_dir / "debug.png")
+    page.screenshot(path=local)
+    if _SCREENSHOT_PATH and _SCREENSHOT_PATH != local:
+        import shutil
+        shutil.copy(local, _SCREENSHOT_PATH)
+    print("  Screenshot saved.")
+
+
 def download_excel(download_dir: Path) -> Path:
     start_date, end_date = academic_year()
     print(f"Syncing academic year: {start_date} → {end_date}")
@@ -138,7 +151,7 @@ def download_excel(download_dir: Path) -> Path:
 
         if not clicked:
             print("ERROR: Could not find the Reports button.")
-            page.screenshot(path=str(download_dir / "debug.png"))
+            _save_screenshot(page, download_dir)
             browser.close()
             sys.exit(1)
 
@@ -165,8 +178,7 @@ def download_excel(download_dir: Path) -> Path:
         except Exception as e:
             print(f"  Could not enumerate panel elements: {e}")
 
-        page.screenshot(path=str(download_dir / "debug.png"))
-        print("  Screenshot saved.")
+        _save_screenshot(page, download_dir)
 
         # ── 3. Select report type via React Select ────────────────────────
         # The dropdown uses class "qgenda-select__input-container" which intercepts
@@ -180,7 +192,7 @@ def download_excel(download_dir: Path) -> Path:
             print("  ✓ Report type set")
         except Exception as e:
             print(f"  ERROR: Report type selection failed: {e}")
-            page.screenshot(path=str(download_dir / "debug.png"))
+            _save_screenshot(page, download_dir)
             browser.close()
             sys.exit(1)
 
@@ -195,7 +207,7 @@ def download_excel(download_dir: Path) -> Path:
             print("  ✓ Format set to Excel")
         except Exception as e:
             print(f"  ERROR: Format selection failed: {e}")
-            page.screenshot(path=str(download_dir / "debug.png"))
+            _save_screenshot(page, download_dir)
             browser.close()
             sys.exit(1)
 
@@ -262,7 +274,7 @@ def download_excel(download_dir: Path) -> Path:
         except Exception as e:
             print(f"ERROR: Run Report failed: {e}")
             try:
-                page.screenshot(path=str(download_dir / "debug.png"))
+                _save_screenshot(page, download_dir)
             except Exception:
                 pass
             browser.close()

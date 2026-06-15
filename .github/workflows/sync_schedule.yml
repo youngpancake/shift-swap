@@ -31,6 +31,7 @@ jobs:
           QGENDA_PUBLIC_URL: ${{ secrets.QGENDA_PUBLIC_URL }}
           APP_URL:           ${{ secrets.APP_URL }}
           APP_ACCESS_CODE:   ${{ secrets.APP_ACCESS_CODE }}
+          DEBUG_SCREENSHOT_PATH: ${{ github.workspace }}/debug.png
         run: python sync/sync_schedule.py
 
       - name: Upload debug screenshot
@@ -38,5 +39,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: debug-screenshot
-          path: /tmp/*/debug.png
+          path: debug.png
           if-no-files-found: ignore
