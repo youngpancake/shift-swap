@@ -18,7 +18,7 @@ from models import (
     SwapRequest, SwapResponse, MarketplaceResult,
 )
 from qgenda import parse_csv, parse_schedule_file, get_api_client
-from shift_parser import infer_resident_level
+from shift_parser import infer_resident_level, is_shift_swappable
 from swap_engine import find_swap_options
 from marketplace import find_swap_cycles
 
@@ -114,13 +114,15 @@ def _load_schedule(
     )
     schedules: dict[int, dict[date, ShiftAssignment]] = {rid: {} for rid in resident_ids}
     for r in rows:
+        shift_type = ShiftType(r.shift_type)
         schedules[r.resident_id][r.work_date] = ShiftAssignment(
             work_date=r.work_date,
             shift_name=r.shift_name,
-            shift_type=ShiftType(r.shift_type),
+            shift_type=shift_type,
             seniority=SeniorityLevel(r.seniority),
             shift_area=r.shift_area or "",
-            is_swappable=bool(r.is_swappable),
+            # Re-evaluate live so parser fixes apply without a re-upload
+            is_swappable=is_shift_swappable(r.shift_name, shift_type),
         )
 
     # Inject synthetic "Off-Service" entries for every day that falls inside a
@@ -161,6 +163,9 @@ def _deduplicate(parsed_rows: list[dict]) -> list[dict]:
 
 def _upsert_rows(parsed_rows: list[dict], db: Session) -> dict:
     parsed_rows = _deduplicate(parsed_rows)
+    if not parsed_rows:
+        return {"residents": 0, "inserted": 0, "deleted": 0}
+
     resident_names: dict[str, list[str]] = {}
     for row in parsed_rows:
         resident_names.setdefault(row["name"], []).append(row["shift_name"])
@@ -179,52 +184,39 @@ def _upsert_rows(parsed_rows: list[dict], db: Session) -> dict:
             db.flush()
             name_to_id[name] = new_r.id
 
-    # Upsert assignments
-    # Some residents appear multiple times on the same day (e.g. Chief On Call
-    # plus a clinical shift). Prefer clinical shifts over Unknown-type entries.
-    _CLINICAL = {"Day", "Swing", "Night"}
-    inserted = updated = skipped = 0
-    for row in parsed_rows:
-        rid = name_to_id[row["name"]]
-        existing = (
-            db.query(ShiftAssignmentRow)
-            .filter(
-                ShiftAssignmentRow.resident_id == rid,
-                ShiftAssignmentRow.work_date == row["work_date"],
-            )
-            .first()
+    # Replace assignments within the upload's date range.
+    # Delete first so removed/rescheduled shifts don't linger in the DB.
+    all_dates = [row["work_date"] for row in parsed_rows]
+    range_start, range_end = min(all_dates), max(all_dates)
+    resident_ids = list(name_to_id.values())
+
+    deleted = (
+        db.query(ShiftAssignmentRow)
+        .filter(
+            ShiftAssignmentRow.resident_id.in_(resident_ids),
+            ShiftAssignmentRow.work_date >= range_start,
+            ShiftAssignmentRow.work_date <= range_end,
         )
-        if existing:
-            existing_clinical = existing.shift_type in _CLINICAL
-            new_clinical = row["shift_type"] in _CLINICAL
-            if new_clinical or not existing_clinical:
-                existing.shift_name   = row["shift_name"]
-                existing.shift_type   = row["shift_type"]
-                existing.seniority    = row["seniority"]
-                existing.shift_area   = row.get("shift_area", "")
-                existing.is_swappable = row.get("is_swappable", False)
-                updated += 1
-            else:
-                skipped += 1
-        else:
-            db.add(
-                ShiftAssignmentRow(
-                    resident_id  = rid,
-                    work_date    = row["work_date"],
-                    shift_name   = row["shift_name"],
-                    shift_type   = row["shift_type"],
-                    seniority    = row["seniority"],
-                    shift_area   = row.get("shift_area", ""),
-                    is_swappable = row.get("is_swappable", False),
-                )
-            )
-            inserted += 1
+        .delete(synchronize_session=False)
+    )
+
+    # Insert all rows fresh
+    for row in parsed_rows:
+        db.add(ShiftAssignmentRow(
+            resident_id  = name_to_id[row["name"]],
+            work_date    = row["work_date"],
+            shift_name   = row["shift_name"],
+            shift_type   = row["shift_type"],
+            seniority    = row["seniority"],
+            shift_area   = row.get("shift_area", ""),
+            is_swappable = row.get("is_swappable", False),
+        ))
 
     db.commit()
     return {
         "residents": len(name_to_id),
-        "inserted": inserted,
-        "updated": updated,
+        "inserted": len(parsed_rows),
+        "deleted": deleted,
     }
 
 

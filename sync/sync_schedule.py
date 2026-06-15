@@ -298,7 +298,7 @@ def upload(file_path: Path) -> None:
     data = resp.json()
     print(
         f"✓ Upload successful: {data.get('residents')} residents, "
-        f"{data.get('inserted')} inserted, {data.get('updated')} updated."
+        f"{data.get('inserted')} inserted, {data.get('deleted')} removed."
     )
 
 
