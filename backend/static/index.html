@@ -684,7 +684,7 @@ function App() {
         selected && h("div", { className: "resident-card" },
           h("div", { className: "resident-name" }, selected.name),
           h("div", { className: `resident-level level-${selected.level.toLowerCase()}` }, `${selected.level} Resident`),
-          h("div", { className: "resident-stats" }, `${assignments.length} shift${assignments.length !== 1 ? "s" : ""} this month`)
+          h("div", { className: "resident-stats" }, (() => { const n = assignments.filter(s => s.is_swappable).length; return `${n} clinical shift${n !== 1 ? "s" : ""} this month`; })())
         ),
         h("hr", { className: "sidebar-divider" }),
         h("div", { className: "compare-label-row" },
@@ -707,7 +707,7 @@ function App() {
         compareResident && h("div", { className: "resident-card" },
           h("div", { className: "resident-name" }, compareResident.name),
           h("div", { className: `resident-level level-${compareResident.level.toLowerCase()}` }, `${compareResident.level} Resident`),
-          h("div", { className: "resident-stats" }, `${compareAssignments.length} shift${compareAssignments.length !== 1 ? "s" : ""} this month`)
+          h("div", { className: "resident-stats" }, (() => { const n = compareAssignments.filter(s => s.is_swappable).length; return `${n} clinical shift${n !== 1 ? "s" : ""} this month`; })())
         ),
         h("div", { className: "sidebar-hint" }, "Click a working day to find swap options. Use \"View calendar\" on any result to see a coverer's schedule.")
       ),

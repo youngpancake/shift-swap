@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import delete as sa_delete
 from sqlalchemy.orm import Session
 
 from database import get_db, init_db, ResidentRow, ShiftAssignmentRow, MarketplaceRequestRow
@@ -190,15 +191,18 @@ def _upsert_rows(parsed_rows: list[dict], db: Session) -> dict:
     range_start, range_end = min(all_dates), max(all_dates)
     resident_ids = list(name_to_id.values())
 
-    deleted = (
-        db.query(ShiftAssignmentRow)
-        .filter(
+    # Use Core-level DELETE so the result is committed to the DB before
+    # the inserts below — avoids unique-constraint conflicts from stale
+    # ORM session cache.
+    result = db.execute(
+        sa_delete(ShiftAssignmentRow).where(
             ShiftAssignmentRow.resident_id.in_(resident_ids),
             ShiftAssignmentRow.work_date >= range_start,
             ShiftAssignmentRow.work_date <= range_end,
         )
-        .delete(synchronize_session=False)
     )
+    deleted = result.rowcount
+    db.flush()  # push DELETE to DB before INSERTs
 
     # Insert all rows fresh
     for row in parsed_rows:
@@ -217,6 +221,7 @@ def _upsert_rows(parsed_rows: list[dict], db: Session) -> dict:
         "residents": len(name_to_id),
         "inserted": len(parsed_rows),
         "deleted": deleted,
+        "date_range": f"{range_start} → {range_end}",
     }
 
 
