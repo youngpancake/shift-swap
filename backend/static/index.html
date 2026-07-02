@@ -283,9 +283,14 @@ function UploadPanel({ onUploaded }) {
     h("div", { className: "upload-help" },
       h("strong", null, "How to export from QGenda:"),
       h("ol", null,
-        h("li", null, "Go to ", h("em", null, "Reports → Schedule Export")),
-        h("li", null, "Select your date range and all residents"),
-        h("li", null, "Download as Excel (.xlsx) or CSV and upload above")
+        h("li", null, "On your desktop, login to ", h("a", { href: "https://app.qgenda.com/", target: "_blank", rel: "noopener noreferrer" }, "app.qgenda.com")),
+        h("li", null, "Click ", h("strong", null, "Harbor UCLA Residents Schedule"), " on the bottom left"),
+        h("li", null, "Click ", h("strong", null, "Reports - Printing and Exporting"), " in the left sidebar"),
+        h("li", null, "Under ", h("em", null, "Report Type"), ", select ", h("strong", null, "Calendar by Staff")),
+        h("li", null, "Under ", h("em", null, "Format"), ", select ", h("strong", null, "Excel")),
+        h("li", null, "Set the date range: ", h("strong", null, "07/01/2026"), " to ", h("strong", null, "06/30/2027")),
+        h("li", null, "Click ", h("strong", null, "Run Report"), " and save the downloaded file"),
+        h("li", null, "Upload the file above")
       )
     )
   );
