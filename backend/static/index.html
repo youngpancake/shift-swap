@@ -129,7 +129,7 @@
     .empty-state { color: #6b7280; font-size: 14px; line-height: 1.7; }
 
     /* Upload panel */
-    .upload-panel { max-width: 500px; margin: 80px auto; padding: 0 20px; }
+    .upload-panel { max-width: 680px; margin: 80px auto; padding: 0 20px; }
     .upload-hero { text-align: center; margin-bottom: 28px; }
     .upload-icon { font-size: 48px; margin-bottom: 12px; }
     .upload-hero h2 { font-size: 26px; font-weight: 700; margin-bottom: 8px; }
@@ -140,9 +140,10 @@
     .drop-icon { font-size: 28px; }
     .upload-success { margin-top: 14px; background: #f0fdf4; border: 1px solid #86efac; color: #166534; padding: 12px 16px; border-radius: 10px; font-size: 14px; }
     .upload-error { margin-top: 14px; background: #fef2f2; border: 1px solid #fca5a5; color: #b91c1c; padding: 12px 16px; border-radius: 10px; font-size: 14px; }
-    .upload-help { margin-top: 28px; background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 12px; padding: 18px 20px; font-size: 14px; line-height: 1.7; color: #4b5563; }
-    .upload-help strong { display: block; margin-bottom: 8px; color: #1a1d23; }
-    .upload-help ol { padding-left: 20px; }
+    .upload-help { margin-top: 20px; background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 12px; padding: 14px 18px; font-size: 13px; line-height: 1.4; color: #4b5563; }
+    .upload-help strong.help-title { display: block; margin-bottom: 6px; color: #1a1d23; font-size: 13px; }
+    .upload-help ol { padding-left: 18px; margin: 0; }
+    .upload-help li { margin-bottom: 2px; }
 
     .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid #e5e7eb; border-top-color: #3b82f6; border-radius: 50%; animation: spin .7s linear infinite; flex-shrink: 0; }
     @keyframes spin { to { transform: rotate(360deg); } }
@@ -281,7 +282,7 @@ function UploadPanel({ onUploaded }) {
     result && h("div", { className: "upload-success" }, result),
     error && h("div", { className: "upload-error" }, error),
     h("div", { className: "upload-help" },
-      h("strong", null, "How to export from QGenda:"),
+      h("strong", { className: "help-title" }, "How to export from QGenda:"),
       h("ol", null,
         h("li", null, "On your desktop, login to ", h("a", { href: "https://app.qgenda.com/", target: "_blank", rel: "noopener noreferrer" }, "app.qgenda.com")),
         h("li", null, "Click ", h("strong", null, "Harbor UCLA Residents Schedule"), " on the bottom left"),
