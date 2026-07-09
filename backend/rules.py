@@ -147,7 +147,7 @@ def can_cover(
     """
     Seniority / area gating:
     - Fast Track Senior → R4 only
-    - Triage            → Sr or R4
+    - Triage / RME      → Sr or R4
     - R4-labeled shift  → R4 only
     - Sr-labeled shift  → Sr or R4
     - Jr / Unknown      → anyone
@@ -155,7 +155,7 @@ def can_cover(
     if shift_area == "Fast Track" and shift_seniority in (SeniorityLevel.SR, SeniorityLevel.R4):
         return coverer_level == SeniorityLevel.R4
 
-    if shift_area == "Triage":
+    if shift_area in ("Triage", "RME"):
         return coverer_level in (SeniorityLevel.SR, SeniorityLevel.R4)
 
     if shift_seniority == SeniorityLevel.R4:
